@@ -6,7 +6,7 @@ uses
   {$IFDEF UNIX}
   cthreads,
   {$ENDIF}
-  Classes, SysUtils, CustApp
+  Classes, SysUtils, paxutils_package, CustApp, nanovg, nanovg_gl
   { you can add units after this };
 
 type

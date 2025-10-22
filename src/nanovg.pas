@@ -8,7 +8,7 @@ Traduzione del codice https://github.com/memononen/nanovg
 interface
 
 uses
-  Classes, SysUtils, Math, fontStash;
+  Classes, SysUtils, fontStash, paxutils;
 
 const
   NVG_PI = 3.14159265358979323846264338327;
@@ -227,10 +227,10 @@ type
   end;
 
   TNVGPathCache = record
-    points: TNVGPoint;
+    points: PNVGPoint;
     npoints: int32;
     cpoints: int32;
-    paths: TNVGPath;
+    paths: PNVGPath;
     npaths: int32;
     cpaths: int32;
     verts: PNVGVertex;
@@ -242,7 +242,7 @@ type
   TNVGStateArray = array of TNVGState;
 
   TNVGContext = record
-    params: TNVGParams;
+    params: PNVGParams;
     commands: PSingle;
     ccommands: int32;
     ncommands: int32;
@@ -495,7 +495,6 @@ procedure nvgImageSize(ctx: PNVGContext; image: int32; var w, h: int32);
 // Deletes created image.
 procedure nvgDeleteImage(ctx: PNVGContext; image: int32);
 
-
 // Paints
 
 // NanoVG supports four types of paints: linear gradient, box gradient, radial gradient and image pattern.
@@ -523,7 +522,6 @@ function nvgRadialGradient(ctx: PNVGContext; cx, cy, inr, outr: single; icol, oc
 // The gradient is transformed by the current transform when it is passed to nvgFillPaint() or nvgStrokePaint().
 function nvgImagePattern(ctx: PNVGContext; ox, oy, ex, ey, angle: single; image: int32; alpha: single): TNVGPaint;
 
-
 // Scissoring
 
 // Scissoring allows you to clip the rendering into a rectangle. This is useful for various
@@ -543,7 +541,6 @@ procedure nvgIntersectScissor(ctx: PNVGContext; x, y, w, h: single);
 
 // Reset and disables scissoring.
 procedure nvgResetScissor(ctx: PNVGContext);
-
 
 // Paths
 
@@ -736,8 +733,10 @@ procedure nvgDebugDumpPathCache(ctx: PNVGContext);
 
 implementation
 
+uses
+  Math, stb_image;
 
-function nvg__sqrtf(a: single): single;
+function nvg__sqrtf(a: single): single; inline;
 (*
 static single nvg__sqrtf(single a) { return sqrtf(a); }
 *)
@@ -745,27 +744,103 @@ begin
   Result := Sqrt(a);
 end;
 
-function nvg__modf(a, b: single): single;
+function nvg__modf(a, b: single): single; inline;
 (*
 static single nvg__modf(single a, single b) { return fmodf(a, b); }
 *)
 begin
-  Result := fmod(a, b);
+  Result := Math.fmod(a, b);
+end;
+
+function nvg__sinf(a: single): single; inline;
+(*
+static single nvg__sinf(single a) { return sinf(a); }
+*)
+begin
+  Result := sin(a);
+end;
+
+function nvg__cosf(a: single): single; inline;
+(*
+static single nvg__cosf(single a) { return cosf(a); }
+*)
+begin
+  Result := cos(a);
+end;
+
+function nvg__tanf(a: single): single; inline;
+(*
+static single nvg__tanf(single a) { return tanf(a); }
+*)
+begin
+  Result := Math.tan(a);
+end;
+
+function nvg__atan2f(a, b: single): single; inline;
+(*
+static single nvg__atan2f(single a,single b) { return atan2f(a, b); }
+*)
+begin
+  Result := ArcTan2(a, b);
+end;
+
+function nvg__acosf(a: single): single;
+(*
+static single nvg__acosf(single a) { return acosf(a); }
+*)
+begin
+  Result := ArcCos(a);
+end;
+
+function nvg__mini(a, b: int32): int32; inline;
+(*
+static int32 nvg__mini(int32 a, int32 b) { return a < b ? a : b; }
+*)
+begin
+  Result := min(a, b);
+end;
+
+function nvg__maxi(a, b: int32): int32; inline;
+(*
+static int32 nvg__maxi(int32 a, int32 b) { return a > b ? a : b; }
+*)
+begin
+  Result := Max(a, b);
+end;
+
+function nvg__clampi(a, mn, mx: int32): int32; inline;
+(*
+static int32 nvg__clampi(int32 a, int32 mn, int32 mx) { return a < mn ? mn : (a > mx ? mx : a); }
+*)
+begin
+  Result := Math.ifThen(a < mn, mn, Math.ifThen(a > mx, mx, a));
+end;
+
+function nvg__minf(a, b: single): single; inline;
+(*
+static single nvg__minf(single a, single b) { return a < b ? a : b; }
+*)
+begin
+  Result := Math.IfThen(a < b, a, b);
+end;
+
+function nvg__maxf(a, b: single): single; inline;
+(*
+static single nvg__maxf(single a, single b) { return a > b ? a : b; }
+*)
+begin
+  Result := IfThen(a > b, a, b);
+end;
+
+function nvg__absf(a: single): single;
+(*
+static single nvg__absf(single a) { return a >= 0.0f ? a : -a; }
+*)
+begin
+  Result := IfThen(a >= 0.0, a, -a);
 end;
 
 (*
-static single nvg__sinf(single a) { return sinf(a); }
-static single nvg__cosf(single a) { return cosf(a); }
-static single nvg__tanf(single a) { return tanf(a); }
-static single nvg__atan2f(single a,single b) { return atan2f(a, b); }
-static single nvg__acosf(single a) { return acosf(a); }
-
-static int32 nvg__mini(int32 a, int32 b) { return a < b ? a : b; }
-static int32 nvg__maxi(int32 a, int32 b) { return a > b ? a : b; }
-static int32 nvg__clampi(int32 a, int32 mn, int32 mx) { return a < mn ? mn : (a > mx ? mx : a); }
-static single nvg__minf(single a, single b) { return a < b ? a : b; }
-static single nvg__maxf(single a, single b) { return a > b ? a : b; }
-static single nvg__absf(single a) { return a >= 0.0f ? a : -a; }
 static single nvg__signf(single a) { return a >= 0.0f ? 1.0f : -1.0f; }
 *)
 function nvg__clampf(a, mn, mx: single): single;
@@ -773,15 +848,18 @@ function nvg__clampf(a, mn, mx: single): single;
 static single nvg__clampf(single a, single mn, single mx) { return a < mn ? mn : (a > mx ? mx : a); }
 *)
 begin
-  Result := a;
-  if a < mn then
-    Result := mn
-  else if a > mx then
-    Result := mx;
+  Result := IfThen(a < mn, mn, IfThen(a > mx, mx, a));
 end;
+
+function nvg__cross(dx0, dy0, dx1, dy1: single): single;
 (*
 static single nvg__cross(single dx0, single dy0, single dx1, single dy1) { return dx1*dy0 - dx0*dy1; }
 *)
+begin
+  Result := dx1 * dy0 - dx0 * dy1;
+end;
+
+function nvg__normalize(var x, y: single): single;
 (*
 static single nvg__normalize(single *x, single* y)
 {
@@ -794,6 +872,20 @@ static single nvg__normalize(single *x, single* y)
   return d;
 }
 *)
+var
+  id, d: single;
+begin
+  d := nvg__sqrtf((x) * (x) + (y) * (y));
+  if (d > 1e-6) then
+  begin
+    id := 1.0 / d;
+    x *= id;
+    y *= id;
+  end;
+  Result := d;
+end;
+
+procedure nvg__deletePathCache(c: PNVGPathCache);
 (*
 static void nvg__deletePathCache(NVGpathCache* c)
 {
@@ -803,7 +895,17 @@ static void nvg__deletePathCache(NVGpathCache* c)
   if (c->verts != NULL) free(c->verts);
   free(c);
 }
+*)
+begin
+  if (c = nil) then exit;
+  if (c^.points <> nil) then Freemem(c^.points);
+  if (c^.paths <> nil) then Freemem(c^.paths);
+  if (c^.verts <> nil) then Freemem(c^.verts);
+  Freemem(c);
+end;
 
+function nvg__allocPathCache(): PNVGPathCache;
+(*
 static NVGpathCache* nvg__allocPathCache(void)
 {
   NVGpathCache* c = (NVGpathCache* )malloc(sizeof(NVGpathCache));
@@ -831,6 +933,33 @@ error:
   return NULL;
 }
 *)
+begin
+  try
+    Result := PNVGPathCache(GetMem(sizeof(TNVGPathCache)));
+    if (Result = nil) then exit;
+    FillByte(Result, sizeof(TNVGpathCache), 0);
+
+    Result^.points := GetMem(sizeof(TNVGPoint) * NVG_INIT_POINTS_SIZE);
+    if (Result^.points = nil) then raise ENullPointerException.Create;
+    Result^.npoints := 0;
+    Result^.cpoints := NVG_INIT_POINTS_SIZE;
+
+    Result^.paths := GetMem(sizeof(TNVGPath) * NVG_INIT_PATHS_SIZE);
+    if (Result^.paths = nil) then raise ENullPointerException.Create;
+    Result^.npaths := 0;
+    Result^.cpaths := NVG_INIT_PATHS_SIZE;
+
+    Result^.verts := GetMem(sizeof(TNVGVertex) * NVG_INIT_VERTS_SIZE);
+    if (Result^.verts = nil) then raise ENullPointerException.Create;
+    Result^.nverts := 0;
+    Result^.cverts := NVG_INIT_VERTS_SIZE;
+  except
+    nvg__deletePathCache(Result);
+    Result := nil;
+  end;
+end;
+
+procedure nvg__setDevicePixelRatio(ctx: PNVGContext; ratio: single);
 (*
 static void nvg__setDevicePixelRatio(ctx: PNVGContext; single ratio)
 {
@@ -840,6 +969,12 @@ static void nvg__setDevicePixelRatio(ctx: PNVGContext; single ratio)
   ctx->devicePxRatio = ratio;
 }
 *)
+begin
+  ctx^.tessTol := 0.25 / ratio;
+  ctx^.distTol := 0.01 / ratio;
+  ctx^.fringeWidth := 1.0 / ratio;
+  ctx^.devicePxRatio := ratio;
+end;
 
 function nvg__compositeOperationState(op: TNVGCompositeOperation): TNVGCompositeOperationState;
 (*
@@ -999,6 +1134,7 @@ begin
   Result := @(ctx^.states[ctx^.nstates - 1]);
 end;
 
+function nvgCreateInternal(params: PNVGParams): PNVGContext;
 (*
 NVGcontext* nvgCreateInternal(NVGparams* params)
 {
@@ -1052,14 +1188,71 @@ error:
   return 0;
 }
 *)
+var
+  fontParams: TFONSParams;
+  i: int32;
+begin
+  try
+    Result := GetMem(sizeof(TNVGcontext));
+    if (Result = nil) then exit;
+    FillByte(Result, sizeof(TNVGContext), 0);
+
+    Result^.params := params;
+    for i := 0 to NVG_MAX_FONTIMAGES - 1 do
+      Result^.fontImages[i] := 0;
+
+    Result^.commands := GetMem(sizeof(single) * NVG_INIT_COMMANDS_SIZE);
+    if (Result^.commands = nil) then raise ENullPointerException.Create;
+    Result^.ncommands := 0;
+    Result^.ccommands := NVG_INIT_COMMANDS_SIZE;
+
+    Result^.cache := nvg__allocPathCache();
+    if (Result^.cache = nil) then raise ENullPointerException.Create;
+
+    nvgSave(Result);
+    nvgReset(Result);
+
+    nvg__setDevicePixelRatio(Result, 1.0);
+
+    if (Result^.params^.renderCreate(Result^.params^.userPtr) = 0) then raise ENullPointerException.Create;
+
+    // Init font rendering
+    FillByte(fontParams, sizeof(fontParams), 0);
+    fontParams.Width := NVG_INIT_FONTIMAGE_SIZE;
+    fontParams.Height := NVG_INIT_FONTIMAGE_SIZE;
+    fontParams.flags := FONS_ZERO_TOPLEFT;
+    fontParams.renderCreate := nil;
+    fontParams.renderUpdate := nil;
+    fontParams.renderDraw := nil;
+    fontParams.renderDelete := nil;
+    fontParams.userPtr := nil;
+    Result^.fs := fonsCreateInternal(@fontParams);
+    if (Result^.fs = nil) then raise ENullPointerException.Create;
+
+    // Create font texture
+    Result^.fontImages[0] := Result^.params^.renderCreateTexture(Result^.params^.userPtr, Ord(NVG_TEXTURE_ALPHA), fontParams.Width, fontParams.Height, 0, nil);
+    if (Result^.fontImages[0] = 0) then raise ENullPointerException.Create;
+    Result^.fontImageIdx := 0;
+  except
+    nvgDeleteInternal(Result);
+    Result := nil;
+  end;
+end;
+
+function nvgInternalParams(ctx: PNVGContext): PNVGParams;
 (*
 NVGparams* nvgInternalParams(ctx: PNVGContext)
 {
     return &ctx->params;
 }
 *)
+begin
+  Result := ctx^.params;
+end;
+
+procedure nvgDeleteInternal(ctx: PNVGContext);
 (*
-procedure nvgDeleteInternal(ctx: PNVGContext)
+void nvgDeleteInternal(ctx: PNVGContext)
 {
   int32 i;
   if (ctx == NULL) return;
@@ -1082,9 +1275,34 @@ procedure nvgDeleteInternal(ctx: PNVGContext)
   free(ctx);
 }
 *)
+var
+  i: int32;
+begin
+  if (ctx = nil) then exit;
+  if (ctx^.commands <> nil) then Freemem(ctx^.commands);
+  if (ctx^.cache <> nil) then nvg__deletePathCache(ctx^.cache);
+
+  if (ctx^.fs <> nil) then
+    fonsDeleteInternal(ctx^.fs);
+
+  for i := 0 to NVG_MAX_FONTIMAGES - 1 do
+  begin
+    if (ctx^.fontImages[i] <> 0) then
+    begin
+      nvgDeleteImage(ctx, ctx^.fontImages[i]);
+      ctx^.fontImages[i] := 0;
+    end;
+  end;
+
+  if (ctx^.params^.renderDelete <> nil) then
+    ctx^.params^.renderDelete(ctx^.params^.userPtr);
+
+  FreeMem(ctx);
+end;
+
 procedure nvgBeginFrame(ctx: PNVGContext; windowWidth: single; windowHeight: single; devicePixelRatio: single);
 (*
-procedure nvgBeginFrame(ctx: PNVGContext; single windowWidth, single windowHeight, single devicePixelRatio)
+void nvgBeginFrame(ctx: PNVGContext; single windowWidth, single windowHeight, single devicePixelRatio)
 {
 /*  printf("Tris: draws:%d  fill:%d  stroke:%d  text:%d  TOT:%d\n",
     ctx->drawCallCount, ctx->fillTriCount, ctx->strokeTriCount, ctx->textTriCount,
@@ -1105,7 +1323,18 @@ procedure nvgBeginFrame(ctx: PNVGContext; single windowWidth, single windowHeigh
 }
 *)
 begin
+  ctx^.nstates := 0;
+  nvgSave(ctx);
+  nvgReset(ctx);
 
+  nvg__setDevicePixelRatio(ctx, devicePixelRatio);
+
+  ctx^.params^.renderViewport(ctx^.params^.userPtr, windowWidth, windowHeight, devicePixelRatio);
+
+  ctx^.drawCallCount := 0;
+  ctx^.fillTriCount := 0;
+  ctx^.strokeTriCount := 0;
+  ctx^.textTriCount := 0;
 end;
 
 procedure nvgCancelFrame(ctx: PNVGContext);
@@ -1116,7 +1345,7 @@ procedure nvgCancelFrame(ctx: PNVGContext)
 }
 *)
 begin
-
+  ctx^.params^.renderCancel(ctx^.params^.userPtr);
 end;
 
 procedure nvgEndFrame(ctx: PNVGContext);
@@ -1151,7 +1380,43 @@ procedure nvgEndFrame(ctx: PNVGContext)
   }
 }
 *)
+var
+  fontImage: int32;
+  i, j, iw, ih: int32;
+  nw, nh: int32;
+  image: int32;
 begin
+  ctx^.params^.renderFlush(ctx^.params^.userPtr);
+  if (ctx^.fontImageIdx <> 0) then
+  begin
+    fontImage := ctx^.fontImages[ctx^.fontImageIdx];
+    ctx^.fontImages[ctx^.fontImageIdx] := 0;
+    // delete images that smaller than current one
+    if (fontImage = 0) then
+      exit;
+    nvgImageSize(ctx, fontImage, iw, ih);
+    j := 0;
+    for i := 0 to ctx^.fontImageIdx - 1 do
+    begin
+      if (ctx^.fontImages[i] <> 0) then
+      begin
+        image := ctx^.fontImages[i];
+        ctx^.fontImages[i] := 0;
+        nvgImageSize(ctx, image, nw, nh);
+        if (nw < iw) or (nh < ih) then
+          nvgDeleteImage(ctx, image)
+        else
+        begin
+          ctx^.fontImages[j] := image;
+          Inc(j);
+        end;
+      end;
+    end;
+    // make current font image to first
+    ctx^.fontImages[j] := ctx^.fontImages[0];
+    ctx^.fontImages[0] := fontImage;
+    ctx^.fontImageIdx := 0;
+  end;
 end;
 
 function nvgRGB(r, g, b: uint8): TNVGColor;
@@ -1735,21 +2000,39 @@ begin
   nvgTransformMultiply(state^.stroke.xform, state^.xform);
 end;
 
+procedure nvgFillColor(ctx: PNVGContext; color: TNVGColor);
 (*
-procedure nvgFillColor(ctx: PNVGContext; color:TNVGColor )
+void nvgFillColor(ctx: PNVGContext; color:TNVGColor )
 {
   NVGstate* state = nvg__getState(ctx);
   nvg__setPaintColor(&state->fill, color);
 }
 *)
+var
+  state: PNVGState;
+begin
+  state := nvg__getState(ctx);
+  nvg__setPaintColor(state^.fill, color);
+end;
+
+procedure nvgFillPaint(ctx: PNVGContext; paint: TNVGPaint);
 (*
-procedure nvgFillPaint(ctx: PNVGContext; paint: TNVGPaint )
+void nvgFillPaint(ctx: PNVGContext; paint: TNVGPaint )
 {
   NVGstate* state = nvg__getState(ctx);
   state->fill = paint;
   nvgTransformMultiply(state->fill.xform, state->xform);
 }
 *)
+var
+  state: PNVGState;
+begin
+  state := nvg__getState(ctx);
+  state^.fill := paint;
+  nvgTransformMultiply(state^.fill.xform, state^.xform);
+end;
+
+function nvgCreateImage(ctx: PNVGContext; const filename: pchar; imageFlags: int32): int32;
 (*
 #ifndef NVG_NO_STB
 int32 nvgCreateImage(ctx: PNVGContext; const char* filename, int32 imageFlags)
@@ -1768,6 +2051,10 @@ int32 nvgCreateImage(ctx: PNVGContext; const char* filename, int32 imageFlags)
   return image;
 }
 *)
+begin
+  Result := 0;
+end;
+
 (*
 int32 nvgCreateImageMem(ctx: PNVGContext; int32 imageFlags, int8* data, int32 ndata)
 {

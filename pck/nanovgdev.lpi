@@ -24,6 +24,11 @@
     <RunParams>
       <FormatVersion Value="2"/>
     </RunParams>
+    <RequiredPackages>
+      <Item>
+        <PackageName Value="paxutils_package"/>
+      </Item>
+    </RequiredPackages>
     <Units>
       <Unit>
         <Filename Value="nanovgdev.lpr"/>
@@ -42,6 +47,11 @@
       <OtherUnitFiles Value="..\src"/>
       <UnitOutputDirectory Value="..\lib\$(TargetCPU)-$(TargetOS)"/>
     </SearchPaths>
+    <Linking>
+      <Debugging>
+        <DebugInfoType Value="dsDwarf3"/>
+      </Debugging>
+    </Linking>
   </CompilerOptions>
   <Debugging>
     <Exceptions>

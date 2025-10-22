@@ -18,7 +18,7 @@ unit nanovg_gl;
 interface
 
 uses
-  Classes, SysUtils, NanoVG, GL;
+  Classes, SysUtils, NanoVG, GL, LResources;
 
 const
   // Flag di creazione

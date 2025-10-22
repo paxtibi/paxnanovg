@@ -8,19 +8,19 @@ uses
   Classes, SysUtils, fpImage, fpReadPNG, fpReadJPEG, fpReadBMP;
 
 type
-  PByte = ^Byte;
-  PInteger = ^Integer;
+  pbyte = ^byte;
+  PInteger = ^integer;
 
 { Funzioni emulate di stb_image }
-function stbi_load(filename: PChar; x, y, channels: PInteger; desired_channels: Integer): PByte; cdecl;
-function stbi_load_from_memory(buffer: PByte; len: Integer; x, y, channels: PInteger; desired_channels: Integer): PByte; cdecl;
-procedure stbi_image_free(data: PByte); cdecl;
-procedure stbi_set_unpremultiply_on_load(flag: Integer); cdecl;
-procedure stbi_convert_iphone_png_to_rgb(flag: Integer); cdecl;
+function stbi_load(filename: pchar; x, y, channels: PInteger; desired_channels: integer): pbyte; cdecl;
+function stbi_load_from_memory(buffer: pbyte; len: integer; x, y, channels: PInteger; desired_channels: integer): pbyte; cdecl;
+procedure stbi_image_free(Data: pbyte); cdecl;
+procedure stbi_set_unpremultiply_on_load(flag: integer); cdecl;
+procedure stbi_convert_iphone_png_to_rgb(flag: integer); cdecl;
 
 var
   // Variabile globale per controllare la premoltiplicazione
-  UnpremultiplyOnLoad: Boolean = False;
+  UnpremultiplyOnLoad: boolean = False;
 
 implementation
 
@@ -40,14 +40,14 @@ begin
 end;
 
 // Funzione per caricare un'immagine da file
-function stbi_load(filename: PChar; x, y, channels: PInteger; desired_channels: Integer): PByte; cdecl;
+function stbi_load(filename: pchar; x, y, channels: PInteger; desired_channels: integer): pbyte; cdecl;
 var
   img: TFPCustomImage;
   reader: TFPCustomImageReader;
-  i, j: Integer;
+  i, j: integer;
   pixel: TFPColor;
-  data, p: PByte;
-  dataSize: Integer;
+  Data, p: pbyte;
+  dataSize: integer;
 begin
   Result := nil;
   img := TFPMemoryImage.Create(0, 0);
@@ -67,9 +67,9 @@ begin
 
     // Alloca memoria per i dati RGBA
     dataSize := img.Width * img.Height * 4;
-    GetMem(data, dataSize);
-    Result := data;
-    p := data;
+    GetMem(Data, dataSize);
+    Result := Data;
+    p := Data;
 
     // Copia i pixel in formato RGBA
     for j := 0 to img.Height - 1 do
@@ -104,10 +104,14 @@ begin
           end
           else
           begin
-            p^ := 0; Inc(p); // Red
-            p^ := 0; Inc(p); // Green
-            p^ := 0; Inc(p); // Blue
-            p^ := 0; Inc(p); // Alpha
+            p^ := 0;
+            Inc(p); // Red
+            p^ := 0;
+            Inc(p); // Green
+            p^ := 0;
+            Inc(p); // Blue
+            p^ := 0;
+            Inc(p); // Alpha
           end;
         end;
       end;
@@ -122,15 +126,15 @@ begin
 end;
 
 // Funzione per caricare un'immagine da memoria
-function stbi_load_from_memory(buffer: PByte; len: Integer; x, y, channels: PInteger; desired_channels: Integer): PByte; cdecl;
+function stbi_load_from_memory(buffer: pbyte; len: integer; x, y, channels: PInteger; desired_channels: integer): pbyte; cdecl;
 var
   img: TFPCustomImage;
   reader: TFPCustomImageReader;
   stream: TMemoryStream;
-  i, j: Integer;
+  i, j: integer;
   pixel: TFPColor;
-  data, p: PByte;
-  dataSize: Integer;
+  Data, p: pbyte;
+  dataSize: integer;
 begin
   Result := nil;
   img := TFPMemoryImage.Create(0, 0);
@@ -155,9 +159,9 @@ begin
 
     // Alloca memoria per i dati RGBA
     dataSize := img.Width * img.Height * 4;
-    GetMem(data, dataSize);
-    Result := data;
-    p := data;
+    GetMem(Data, dataSize);
+    Result := Data;
+    p := Data;
 
     // Copia i pixel in formato RGBA
     for j := 0 to img.Height - 1 do
@@ -190,10 +194,14 @@ begin
           end
           else
           begin
-            p^ := 0; Inc(p);
-            p^ := 0; Inc(p);
-            p^ := 0; Inc(p);
-            p^ := 0; Inc(p);
+            p^ := 0;
+            Inc(p);
+            p^ := 0;
+            Inc(p);
+            p^ := 0;
+            Inc(p);
+            p^ := 0;
+            Inc(p);
           end;
         end;
       end;
@@ -210,20 +218,20 @@ begin
 end;
 
 // Funzione per liberare la memoria
-procedure stbi_image_free(data: PByte); cdecl;
+procedure stbi_image_free(Data: pbyte); cdecl;
 begin
-  if data <> nil then
-    FreeMem(data);
+  if Data <> nil then
+    FreeMem(Data);
 end;
 
 // Funzione per impostare la premoltiplicazione
-procedure stbi_set_unpremultiply_on_load(flag: Integer); cdecl;
+procedure stbi_set_unpremultiply_on_load(flag: integer); cdecl;
 begin
   UnpremultiplyOnLoad := flag <> 0;
 end;
 
 // Funzione per compatibilitÀ con i PNG di iPhone (non necessaria con fpImage)
-procedure stbi_convert_iphone_png_to_rgb(flag: Integer); cdecl;
+procedure stbi_convert_iphone_png_to_rgb(flag: integer); cdecl;
 begin
   // Non necessario, fpImage normalizza i dati automaticamente
 end;
