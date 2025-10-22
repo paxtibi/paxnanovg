@@ -1,0 +1,3 @@
+[submodule "originale"]
+	path = originale
+	url = https://github.com/memononen/nanovg.git
