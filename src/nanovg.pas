@@ -143,8 +143,10 @@ type
   PNVGPath = ^TNVGPath;
   PNVGParams = ^TNVGParams;
 
+  TAffineMatrix = array[0..5] of single;
+
   TNVGScissor = record
-    xform: array[0..5] of single;
+    xform: TAffineMatrix;
     extent: array [0..1] of single;
   end;
   PNVGVertex = ^TNVGVertex;
@@ -208,7 +210,7 @@ type
     lineJoin: TNVGLineCap;
     lineCap: TNVGLineCap;
     alpha: single;
-    xform: array[0..5] of single;
+    xform: TAffineMatrix;
     scissor: TNVGScissor;
     fontSize: single;
     letterSpacing: single;
@@ -1241,10 +1243,7 @@ end;
 
 function nvgInternalParams(ctx: PNVGContext): PNVGParams;
 (*
-NVGparams* nvgInternalParams(ctx: PNVGContext)
-{
-    return &ctx->params;
-}
+NVGparams* nvgInternalParams(ctx: PNVGContext){    return &ctx->params;}
 *)
 begin
   Result := ctx^.params;
@@ -1431,12 +1430,7 @@ begin
 end;
 
 function nvgRGB(r, g, b: single): TNVGColor;
-(*
-NVGcolor nvgRGBf(single r, single g, single b)
-{
-  return nvgRGBAf(r,g,b,1.0f);
-}
-*)
+  (* NVGcolor nvgRGBf(single r, single g, single b) { return nvgRGBAf(r,g,b,1.0f); } *)
 begin
   Result := nvgRGBA(r, g, b, 1.0);
 end;
@@ -1495,13 +1489,7 @@ begin
 end;
 
 function nvgTransRGBA(c: TNVGColor; a: single): TNVGcolor;
-(*
-NVGcolor nvgTransRGBAf(NVGcolor c, single a)
-{
-  c.a = a;
-  return c;
-}
-*)
+  (* NVGcolor nvgTransRGBAf(NVGcolor c, single a) { c.a = a; return c; } *)
 begin
   Result := c;
   Result.a := a;
@@ -1610,8 +1598,9 @@ begin
   Result.a := a / 255.0;
 end;
 
+procedure nvgTransformIdentity(dst: PSingle);
 (*
-procedure nvgTransformIdentity(single* t)
+void nvgTransformIdentity(single* t)
 {
   t[0] = 1.0f; t[1] = 0.0f;
   t[2] = 0.0f; t[3] = 1.0f;
@@ -1619,17 +1608,37 @@ procedure nvgTransformIdentity(single* t)
 }
 
 *)
+begin
+  dst[0] := 1.0;
+  dst[1] := 0.0;
+  dst[2] := 0.0;
+  dst[3] := 1.0;
+  dst[4] := 0.0;
+  dst[5] := 0.0;
+end;
+
+procedure nvgTransformTranslate(dst: PSingle; tx, ty: single);
 (*
-procedure nvgTransformTranslate(single* t, single tx, single ty)
+void nvgTransformTranslate(single* t, single tx, single ty)
 {
   t[0] = 1.0f; t[1] = 0.0f;
   t[2] = 0.0f; t[3] = 1.0f;
   t[4] = tx; t[5] = ty;
 }
-
 *)
+begin
+  dst[0] := 1.0;
+  dst[1] := 0.0;
+  dst[2] := 0.0;
+  dst[3] := 1.0;
+  dst[4] := tx;
+  dst[5] := ty;
+end;
+
+
+procedure nvgTransformScale(dst: PSingle; sx, sy: single);
 (*
-procedure nvgTransformScale(single* t, single sx, single sy)
+void nvgTransformScale(single* t, single sx, single sy)
 {
   t[0] = sx; t[1] = 0.0f;
   t[2] = 0.0f; t[3] = sy;
@@ -1637,18 +1646,41 @@ procedure nvgTransformScale(single* t, single sx, single sy)
 }
 
 *)
+begin
+  dst[0] := sx;
+  dst[1] := 0.0;
+  dst[2] := 0.0;
+  dst[3] := sy;
+  dst[4] := 0.0;
+  dst[5] := 0.0;
+end;
+
+procedure nvgTransformRotate(dst: PSingle; a: single);
 (*
-procedure nvgTransformRotate(single* t, single a)
+void nvgTransformRotate(single* t, single a)
 {
   single cs = nvg__cosf(a), sn = nvg__sinf(a);
   t[0] = cs; t[1] = sn;
   t[2] = -sn; t[3] = cs;
   t[4] = 0.0f; t[5] = 0.0f;
 }
-
 *)
+var
+  cs, sn: single;
+begin
+  cs := nvg__cosf(a);
+  sn := nvg__sinf(a);
+  dst[0] := cs;
+  dst[1] := sn;
+  dst[2] := -sn;
+  dst[3] := cs;
+  dst[4] := 0.0;
+  dst[5] := 0.0;
+end;
+
+procedure nvgTransformSkewX(dst: PSingle; a: single);
 (*
-procedure nvgTransformSkewX(single* t, single a)
+void nvgTransformSkewX(single* t, single a)
 {
   t[0] = 1.0f; t[1] = 0.0f;
   t[2] = nvg__tanf(a); t[3] = 1.0f;
@@ -1656,17 +1688,36 @@ procedure nvgTransformSkewX(single* t, single a)
 }
 
 *)
+begin
+  dst[0] := 1.0;
+  dst[1] := 0.0;
+  dst[2] := nvg__tanf(a);
+  dst[3] := 1.0;
+  dst[4] := 0.0;
+  dst[5] := 0.0;
+end;
+
+procedure nvgTransformSkewY(dst: PSingle; a: single);
 (*
-procedure nvgTransformSkewY(single* t, single a)
+void nvgTransformSkewY(single* t, single a)
 {
   t[0] = 1.0f; t[1] = nvg__tanf(a);
   t[2] = 0.0f; t[3] = 1.0f;
   t[4] = 0.0f; t[5] = 0.0f;
 }
-
 *)
+begin
+  dst[0] := 1.0;
+  dst[1] := nvg__tanf(a);
+  dst[2] := 0.0;
+  dst[3] := 1.0;
+  dst[4] := 0.0;
+  dst[5] := 0.0;
+end;
+
+procedure nvgTransformMultiply(dst: PSingle; const src: PSingle);
 (*
-procedure nvgTransformMultiply(single* t, const single* s)
+void nvgTransformMultiply(single* t, const single* s)
 {
   single t0 = t[0] * s[0] + t[1] * s[2];
   single t2 = t[2] * s[0] + t[3] * s[2];
@@ -1678,18 +1729,39 @@ procedure nvgTransformMultiply(single* t, const single* s)
   t[2] = t2;
   t[4] = t4;
 }
-
 *)
+var
+  t0, t2, t4: single;
+begin
+  t0 := dst[0] * src[0] + dst[1] * src[2];
+  t2 := dst[2] * src[0] + dst[3] * src[2];
+  t4 := dst[4] * src[0] + dst[5] * src[2] + src[4];
+  dst[1] := dst[0] * src[1] + dst[1] * src[3];
+  dst[3] := dst[2] * src[1] + dst[3] * src[3];
+  dst[5] := dst[4] * src[1] + dst[5] * src[3] + src[5];
+  dst[0] := t0;
+  dst[2] := t2;
+  dst[4] := t4;
+end;
+
+procedure nvgTransformPremultiply(dst: PSingle; const src: PSingle);
 (*
-procedure nvgTransformPremultiply(single* t, const single* s)
+void nvgTransformPremultiply(single* t, const single* s)
 {
   single s2[6];
   memcpy(s2, s, sizeof(single)*6);
   nvgTransformMultiply(s2, t);
   memcpy(t, s2, sizeof(single)*6);
 }
-
 *)
+var
+  s2: TAffineMatrix;
+begin
+  Move(src^,s2[0], sizeof(single) * 6);
+  nvgTransformMultiply(s2, dst);
+  move(s2[0],dst^, sizeof(single) * 6);
+end;
+
 (*
 int32 nvgTransformInverse(single* inv, const single* t)
 {
