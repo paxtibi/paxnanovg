@@ -26,8 +26,8 @@
         <Filename Value="..\src\nanovg.pas"/>
         <IsVisibleTab Value="True"/>
         <EditorIndex Value="2"/>
-        <TopLine Value="1662"/>
-        <CursorPos X="47" Y="1662"/>
+        <TopLine Value="3176"/>
+        <CursorPos X="50" Y="3192"/>
         <UsageCount Value="10"/>
         <Loaded Value="True"/>
       </Unit>
@@ -56,123 +56,121 @@
     <JumpHistory HistoryIndex="29">
       <Position>
         <Filename Value="..\src\nanovg.pas"/>
-        <Caret Line="1620" Column="9" TopLine="1604"/>
+        <Caret Line="2296" Column="72" TopLine="2275"/>
       </Position>
       <Position>
         <Filename Value="..\src\nanovg.pas"/>
-        <Caret Line="508" Column="10" TopLine="504"/>
       </Position>
       <Position>
         <Filename Value="..\src\nanovg.pas"/>
-        <Caret Line="1663" Column="29" TopLine="1641"/>
+        <Caret Line="2056" TopLine="2043"/>
       </Position>
       <Position>
         <Filename Value="..\src\nanovg.pas"/>
-        <Caret Line="1649" Column="33" TopLine="1635"/>
+        <Caret Line="2324" Column="40" TopLine="2309"/>
       </Position>
       <Position>
         <Filename Value="..\src\nanovg.pas"/>
-        <Caret Line="481" Column="10" TopLine="471"/>
+        <Caret Line="2364" Column="95" TopLine="2348"/>
       </Position>
       <Position>
         <Filename Value="..\src\nanovg.pas"/>
-        <Caret Line="1556" Column="3" TopLine="1539"/>
+        <Caret Line="2371" Column="40" TopLine="2356"/>
       </Position>
       <Position>
         <Filename Value="..\src\nanovg.pas"/>
-        <Caret Line="485" Column="10" TopLine="470"/>
+        <Caret Line="2531" Column="10" TopLine="2528"/>
       </Position>
       <Position>
         <Filename Value="..\src\nanovg.pas"/>
-        <Caret Line="1572" Column="3" TopLine="1556"/>
+        <Caret Line="2575" Column="40" TopLine="2558"/>
       </Position>
       <Position>
         <Filename Value="..\src\nanovg.pas"/>
-        <Caret Line="489" Column="51" TopLine="487"/>
+        <Caret Line="2584" Column="51" TopLine="2568"/>
       </Position>
       <Position>
         <Filename Value="..\src\nanovg.pas"/>
-        <Caret Line="1572" TopLine="1572"/>
+        <Caret Line="2590" Column="57" TopLine="2574"/>
       </Position>
       <Position>
         <Filename Value="..\src\nanovg.pas"/>
-        <Caret Line="489" Column="51" TopLine="487"/>
+        <Caret Line="2598" Column="54" TopLine="2577"/>
       </Position>
       <Position>
         <Filename Value="..\src\nanovg.pas"/>
-        <Caret Line="1572" Column="51" TopLine="1572"/>
+        <Caret Line="2597" Column="27" TopLine="2581"/>
       </Position>
       <Position>
         <Filename Value="..\src\nanovg.pas"/>
-        <Caret Line="489" Column="51" TopLine="487"/>
+        <Caret Line="2528" Column="60" TopLine="2553"/>
       </Position>
       <Position>
         <Filename Value="..\src\nanovg.pas"/>
-        <Caret Line="1572" Column="51" TopLine="1572"/>
+        <Caret Line="196" Column="17" TopLine="181"/>
       </Position>
       <Position>
         <Filename Value="..\src\nanovg.pas"/>
-        <Caret Line="489" Column="51" TopLine="487"/>
+        <Caret Line="2601" Column="28" TopLine="2581"/>
       </Position>
       <Position>
         <Filename Value="..\src\nanovg.pas"/>
-        <Caret Line="1572" Column="59" TopLine="1572"/>
+        <Caret Line="2597" Column="27" TopLine="2581"/>
       </Position>
       <Position>
         <Filename Value="..\src\nanovg.pas"/>
-        <Caret Line="485" Column="10" TopLine="474"/>
+        <Caret Line="61" Column="14" TopLine="48"/>
       </Position>
       <Position>
         <Filename Value="..\src\nanovg.pas"/>
-        <Caret Line="1561" Column="3" TopLine="1556"/>
+        <Caret Line="2528" Column="81" TopLine="2523"/>
       </Position>
       <Position>
         <Filename Value="..\src\nanovg.pas"/>
-        <Caret Line="492" Column="10" TopLine="470"/>
+        <Caret Line="2601" Column="51" TopLine="2585"/>
       </Position>
       <Position>
         <Filename Value="..\src\nanovg.pas"/>
-        <Caret Line="1582" Column="3" TopLine="1578"/>
+        <Caret Line="2611" Column="28" TopLine="2593"/>
       </Position>
       <Position>
         <Filename Value="..\src\nanovg.pas"/>
-        <Caret Line="495" Column="11" TopLine="477"/>
+        <Caret Line="2756" Column="39" TopLine="2740"/>
       </Position>
       <Position>
         <Filename Value="..\src\nanovg.pas"/>
-        <Caret Line="1589" Column="3" TopLine="1587"/>
+        <Caret Line="2528" Column="81" TopLine="2512"/>
       </Position>
       <Position>
         <Filename Value="..\src\nanovg.pas"/>
-        <Caret Line="498" Column="11" TopLine="480"/>
+        <Caret Line="2740" Column="76" TopLine="2740"/>
       </Position>
       <Position>
         <Filename Value="..\src\nanovg.pas"/>
-        <Caret Line="1594" Column="3" TopLine="1592"/>
+        <Caret Line="2768" Column="31" TopLine="2753"/>
       </Position>
       <Position>
         <Filename Value="..\src\nanovg.pas"/>
-        <Caret Line="498" Column="11" TopLine="483"/>
       </Position>
       <Position>
         <Filename Value="..\src\nanovg.pas"/>
-        <Caret Line="1598" TopLine="1592"/>
+        <Caret Line="2015" Column="5" TopLine="1987"/>
       </Position>
       <Position>
         <Filename Value="..\src\nanovg.pas"/>
-        <Caret Line="520" Column="10" TopLine="508"/>
+        <Caret Line="2005" Column="70" TopLine="1989"/>
       </Position>
       <Position>
         <Filename Value="..\src\nanovg.pas"/>
-        <Caret Line="1667" TopLine="1655"/>
+        <Caret Line="2803" Column="45" TopLine="2781"/>
       </Position>
       <Position>
         <Filename Value="..\src\nanovg.pas"/>
-        <Caret Line="1662" Column="39" TopLine="1657"/>
+        <Caret Line="2867" Column="71" TopLine="2851"/>
       </Position>
       <Position>
         <Filename Value="..\src\nanovg.pas"/>
-        <Caret Line="515" Column="47" TopLine="510"/>
+        <Caret Line="3192" Column="89" TopLine="3176"/>
       </Position>
     </JumpHistory>
     <RunParams>
