@@ -2242,69 +2242,85 @@ begin
   end;
 end;
 
-(*
-static NVGvertex* nvg__roundJoin(NVGvertex* dst, NVGpoint* p0, NVGpoint* p1,
-                 single lw, single rw, single lu, single ru, int32 ncap,
-                 single fringe)
-{
-  int32 i, n;
-  single dlx0 = p0^.dy;
-  single dly0 = -p0^.dx;
-  single dlx1 = p1^.dy;
-  single dly1 = -p1^.dx;
-  NVG_NOTUSED(fringe);
+function nvg__roundJoin(dst: PNVGvertex; p0, p1: PNVGpoint; lw, rw, lu, ru: single; ncap: int32; fringe: single): PNVGvertex;
+var
+  i, n: int32;
+  dlx0, dly0, dlx1, dly1: single;
+  lx0, ly0, lx1, ly1, a0, a1: single;
+  rx0, ry0, rx1, ry1: single;
+  u, a, rx, ry, lx, ly: single;
+begin
+  dlx0 := p0^.dy;
+  dly0 := -p0^.dx;
+  dlx1 := p1^.dy;
+  dly1 := -p1^.dx;
+  // NVG_NOTUSED(fringe); // Non usato, commentato
 
-  if (p1^.flags & NVG_PT_LEFT) {
-    single lx0,ly0,lx1,ly1,a0,a1;
-    nvg__chooseBevel(p1^.flags & NVG_PR_INNERBEVEL, p0, p1, lw, &lx0,&ly0, &lx1,&ly1);
-    a0 = atan2f(-dly0, -dlx0);
-    a1 = atan2f(-dly1, -dlx1);
-    if (a1 > a0) a1 -= NVG_PI*2;
+  if (p1^.flags and Ord(NVG_PT_LEFT)) <> 0 then
+  begin
+    nvg__chooseBevel((p1^.flags and Ord(NVG_PR_INNERBEVEL)) <> 0, p0, p1, lw, lx0, ly0, lx1, ly1);
+    a0 := ArcTan2(-dly0, -dlx0);
+    a1 := ArcTan2(-dly1, -dlx1);
+    if a1 > a0 then
+      a1 := a1 - NVG_PI * 2;
 
-    nvg__vset(dst, lx0, ly0, lu,1); dst++;
-    nvg__vset(dst, p1^.x - dlx0*rw, p1^.y - dly0*rw, ru,1); dst++;
+    nvg__vset(dst, lx0, ly0, lu, 1);
+    Inc(dst);
+    nvg__vset(dst, p1^.x - dlx0 * rw, p1^.y - dly0 * rw, ru, 1);
+    Inc(dst);
 
-    n = nvg__clampi((int32)ceilf(((a0 - a1) / NVG_PI) * ncap), 2, ncap);
-    for (i = 0; i < n; i++) {
-      single u = i/(single)(n-1);
-      single a = a0 + u*(a1-a0);
-      single rx = p1^.x + cosf(a) * rw;
-      single ry = p1^.y + sinf(a) * rw;
-      nvg__vset(dst, p1^.x, p1^.y, 0.5f,1); dst++;
-      nvg__vset(dst, rx, ry, ru,1); dst++;
-    }
+    n := nvg__clampi(Trunc(Ceil(((a0 - a1) / NVG_PI) * ncap)), 2, ncap);
+    for i := 0 to n - 1 do
+    begin
+      u := i / (n - 1);
+      a := a0 + u * (a1 - a0);
+      rx := p1^.x + Cos(a) * rw;
+      ry := p1^.y + Sin(a) * rw;
+      nvg__vset(dst, p1^.x, p1^.y, 0.5, 1);
+      Inc(dst);
+      nvg__vset(dst, rx, ry, ru, 1);
+      Inc(dst);
+    end;
 
-    nvg__vset(dst, lx1, ly1, lu,1); dst++;
-    nvg__vset(dst, p1^.x - dlx1*rw, p1^.y - dly1*rw, ru,1); dst++;
+    nvg__vset(dst, lx1, ly1, lu, 1);
+    Inc(dst);
+    nvg__vset(dst, p1^.x - dlx1 * rw, p1^.y - dly1 * rw, ru, 1);
+    Inc(dst);
+  end
+  else
+  begin
+    nvg__chooseBevel((p1^.flags and Ord(NVG_PR_INNERBEVEL)) <> 0, p0, p1, -rw, rx0, ry0, rx1, ry1);
+    a0 := ArcTan2(dly0, dlx0);
+    a1 := ArcTan2(dly1, dlx1);
+    if a1 < a0 then
+      a1 := a1 + NVG_PI * 2;
 
-  } else {
-    single rx0,ry0,rx1,ry1,a0,a1;
-    nvg__chooseBevel(p1^.flags & NVG_PR_INNERBEVEL, p0, p1, -rw, &rx0,&ry0, &rx1,&ry1);
-    a0 = atan2f(dly0, dlx0);
-    a1 = atan2f(dly1, dlx1);
-    if (a1 < a0) a1 += NVG_PI*2;
+    nvg__vset(dst, p1^.x + dlx0 * rw, p1^.y + dly0 * rw, lu, 1);
+    Inc(dst);
+    nvg__vset(dst, rx0, ry0, ru, 1);
+    Inc(dst);
 
-    nvg__vset(dst, p1^.x + dlx0*rw, p1^.y + dly0*rw, lu,1); dst++;
-    nvg__vset(dst, rx0, ry0, ru,1); dst++;
+    n := nvg__clampi(Trunc(Ceil(((a1 - a0) / NVG_PI) * ncap)), 2, ncap);
+    for i := 0 to n - 1 do
+    begin
+      u := i / (n - 1);
+      a := a0 + u * (a1 - a0);
+      lx := p1^.x + Cos(a) * lw;
+      ly := p1^.y + Sin(a) * lw;
+      nvg__vset(dst, lx, ly, lu, 1);
+      Inc(dst);
+      nvg__vset(dst, p1^.x, p1^.y, 0.5, 1);
+      Inc(dst);
+    end;
 
-    n = nvg__clampi((int32)ceilf(((a1 - a0) / NVG_PI) * ncap), 2, ncap);
-    for (i = 0; i < n; i++) {
-      single u = i/(single)(n-1);
-      single a = a0 + u*(a1-a0);
-      single lx = p1^.x + cosf(a) * lw;
-      single ly = p1^.y + sinf(a) * lw;
-      nvg__vset(dst, lx, ly, lu,1); dst++;
-      nvg__vset(dst, p1^.x, p1^.y, 0.5f,1); dst++;
-    }
+    nvg__vset(dst, p1^.x + dlx1 * rw, p1^.y + dly1 * rw, lu, 1);
+    Inc(dst);
+    nvg__vset(dst, rx1, ry1, ru, 1);
+    Inc(dst);
+  end;
 
-    nvg__vset(dst, p1^.x + dlx1*rw, p1^.y + dly1*rw, lu,1); dst++;
-    nvg__vset(dst, rx1, ry1, ru,1); dst++;
-
-  }
-  return dst;
-}
-
-*)
+  Result := dst;
+end;
 
 function nvg__bevelJoin(dst: PNVGvertex; p0, p1: PNVGpoint; lw, rw, lu, ru, fringe: single): PNVGvertex;
 var
@@ -2617,131 +2633,155 @@ begin
       path^.convex := False;
   end;
 end;
-(*
-static int32 nvg__expandStroke(ctx: PNVGContext; single w, single fringe, int32 lineCap, int32 lineJoin, single miterLimit)
-{
-  NVGpathCache* cache = ctx^.cache;
-  NVGvertex* verts;
-  NVGvertex* dst;
-  int32 cverts, i, j;
-  single aa = fringe;//ctx^.fringeWidth;
-  single u0 = 0.0f, u1 = 1.0f;
-  int32 ncap = nvg__curveDivs(w, NVG_PI, ctx^.tessTol);  // Calculate divisions per half circle.
 
-  w += aa * 0.5f;
+function nvg__expandStroke(ctx: PNVGContext; w, fringe: single; lineCap, lineJoin: TNVGLineCap; miterLimit: single): int32;
+var
+  cache: PNVGPathCache;
+  verts, dst: PNVGvertex;
+  cverts, i, j: int32;
+  aa, u0, u1: single;
+  ncap: int32;
+  path: PNVGpath;
+  pts, p0, p1: PNVGpoint;
+  s, e, loop: int32;
+  dx, dy: single;
+begin
+  cache := ctx^.cache;
+  aa := fringe; // ctx^.fringeWidth;
+  u0 := 0.0;
+  u1 := 1.0;
+  ncap := nvg__curveDivs(w, NVG_PI, ctx^.tessTol); // Calcola divisioni per mezzo cerchio
 
-  // Disable the gradient used for antialiasing when antialiasing is not used.
-  if (aa == 0.0f) {
-    u0 = 0.5f;
-    u1 = 0.5f;
-  }
+  w := w + aa * 0.5;
+
+  // Disabilita gradiente per antialiasing se non usato
+  if aa = 0.0 then
+  begin
+    u0 := 0.5;
+    u1 := 0.5;
+  end;
 
   nvg__calculateJoins(ctx, w, lineJoin, miterLimit);
 
-  // Calculate max vertex usage.
-  cverts = 0;
-  for (i = 0; i < cache^.npaths; i++) {
-    NVGpath* path = &cache^.paths[i];
-    int32 loop = (path^.closed == 0) ? 0 : 1;
-    if (lineJoin == NVG_ROUND)
-      cverts += (path^.count + path^.nbevel*(ncap+2) + 1) * 2; // plus one for loop
+  // Calcola massimo utilizzo vertici
+  cverts := 0;
+  for i := 0 to cache^.npaths - 1 do
+  begin
+    path := @cache^.paths[i];
+    loop := IfThen(path^.closed = False, 0, 1);
+    if lineJoin = NVG_ROUND then
+      cverts := cverts + (path^.Count + path^.nbevel * (ncap + 2) + 1) * 2 // più uno per il loop
     else
-      cverts += (path^.count + path^.nbevel*5 + 1) * 2; // plus one for loop
-    if (loop == 0) {
-      // space for caps
-      if (lineCap == NVG_ROUND) {
-        cverts += (ncap*2 + 2)*2;
-      } else {
-        cverts += (3+3)*2;
-      }
-    }
-  }
+      cverts := cverts + (path^.Count + path^.nbevel * 5 + 1) * 2; // più uno per il loop
+    if loop = 0 then
+    begin
+      // Spazio per i cap
+      if lineCap = NVG_ROUND then
+        cverts := cverts + (ncap * 2 + 2) * 2
+      else
+        cverts := cverts + (3 + 3) * 2;
+    end;
+  end;
 
-  verts = nvg__allocTempVerts(ctx, cverts);
-  if (verts == NULL) return 0;
+  verts := nvg__allocTempVerts(ctx, cverts);
+  if verts = nil then
+  begin
+    Result := 0;
+    Exit;
+  end;
 
-  for (i = 0; i < cache^.npaths; i++) {
-    NVGpath* path = &cache^.paths[i];
-    NVGpoint* pts = &cache^.points[path^.first];
-    NVGpoint* p0;
-    NVGpoint* p1;
-    int32 s, e, loop;
-    single dx, dy;
+  for i := 0 to cache^.npaths - 1 do
+  begin
+    path := @cache^.paths[i];
+    pts := @cache^.points[path^.First];
+    path^.fill := nil;
+    path^.nfill := 0;
 
-    path^.fill = 0;
-    path^.nfill = 0;
+    // Calcola fringe o stroke
+    loop := IfThen(path^.closed = False, 0, 1);
+    dst := verts;
+    path^.stroke := dst;
 
-    // Calculate fringe or stroke
-    loop = (path^.closed == 0) ? 0 : 1;
-    dst = verts;
-    path^.stroke = dst;
+    if loop <> 0 then
+    begin
+      // Loop chiuso
+      p0 := @pts[path^.Count - 1];
+      p1 := @pts[0];
+      s := 0;
+      e := path^.Count;
+    end
+    else
+    begin
+      // Aggiungi cap iniziale
+      p0 := @pts[0];
+      p1 := @pts[1];
+      s := 1;
+      e := path^.Count - 1;
+    end;
 
-    if (loop) {
-      // Looping
-      p0 = &pts[path^.count-1];
-      p1 = &pts[0];
-      s = 0;
-      e = path^.count;
-    } else {
-      // Add cap
-      p0 = &pts[0];
-      p1 = &pts[1];
-      s = 1;
-      e = path^.count-1;
-    }
+    if loop = 0 then
+    begin
+      // Aggiungi cap iniziale
+      dx := p1^.x - p0^.x;
+      dy := p1^.y - p0^.y;
+      nvg__normalize(dx, dy);
+      if lineCap = NVG_BUTT then
+        dst := nvg__buttCapStart(dst, p0, dx, dy, w, -aa * 0.5, aa, u0, u1)
+      else if (lineCap = NVG_BUTT) or (lineCap = NVG_SQUARE) then
+        dst := nvg__buttCapStart(dst, p0, dx, dy, w, w - aa, aa, u0, u1)
+      else if lineCap = NVG_ROUND then
+        dst := nvg__roundCapStart(dst, p0, dx, dy, w, ncap, aa, u0, u1);
+    end;
 
-    if (loop == 0) {
-      // Add cap
-      dx = p1^.x - p0^.x;
-      dy = p1^.y - p0^.y;
-      nvg__normalize(&dx, &dy);
-      if (lineCap == NVG_BUTT)
-        dst = nvg__buttCapStart(dst, p0, dx, dy, w, -aa*0.5f, aa, u0, u1);
-      else if (lineCap == NVG_BUTT || lineCap == NVG_SQUARE)
-        dst = nvg__buttCapStart(dst, p0, dx, dy, w, w-aa, aa, u0, u1);
-      else if (lineCap == NVG_ROUND)
-        dst = nvg__roundCapStart(dst, p0, dx, dy, w, ncap, aa, u0, u1);
-    }
+    for j := s to e - 1 do
+    begin
+      if (p1^.flags and (Ord(NVG_PT_BEVEL) or Ord(NVG_PR_INNERBEVEL))) <> 0 then
+      begin
+        if lineJoin = NVG_ROUND then
+          dst := nvg__roundJoin(dst, p0, p1, w, w, u0, u1, ncap, aa)
+        else
+          dst := nvg__bevelJoin(dst, p0, p1, w, w, u0, u1, aa);
+      end
+      else
+      begin
+        nvg__vset(dst, p1^.x + (p1^.dmx * w), p1^.y + (p1^.dmy * w), u0, 1);
+        Inc(dst);
+        nvg__vset(dst, p1^.x - (p1^.dmx * w), p1^.y - (p1^.dmy * w), u1, 1);
+        Inc(dst);
+      end;
+      p0 := p1;
+      Inc(p1);
+    end;
 
-    for (j = s; j < e; ++j) {
-      if ((p1^.flags & (NVG_PT_BEVEL | NVG_PR_INNERBEVEL)) != 0) {
-        if (lineJoin == NVG_ROUND) {
-          dst = nvg__roundJoin(dst, p0, p1, w, w, u0, u1, ncap, aa);
-        } else {
-          dst = nvg__bevelJoin(dst, p0, p1, w, w, u0, u1, aa);
-        }
-      } else {
-        nvg__vset(dst, p1^.x + (p1^.dmx * w), p1^.y + (p1^.dmy * w), u0,1); dst++;
-        nvg__vset(dst, p1^.x - (p1^.dmx * w), p1^.y - (p1^.dmy * w), u1,1); dst++;
-      }
-      p0 = p1++;
-    }
+    if loop <> 0 then
+    begin
+      // Chiudi il loop
+      nvg__vset(dst, verts[0].x, verts[0].y, u0, 1);
+      Inc(dst);
+      nvg__vset(dst, verts[1].x, verts[1].y, u1, 1);
+      Inc(dst);
+    end
+    else
+    begin
+      // Aggiungi cap finale
+      dx := p1^.x - p0^.x;
+      dy := p1^.y - p0^.y;
+      nvg__normalize(dx, dy);
+      if lineCap = NVG_BUTT then
+        dst := nvg__buttCapEnd(dst, p1, dx, dy, w, -aa * 0.5, aa, u0, u1)
+      else if (lineCap = NVG_BUTT) or (lineCap = NVG_SQUARE) then
+        dst := nvg__buttCapEnd(dst, p1, dx, dy, w, w - aa, aa, u0, u1)
+      else if lineCap = NVG_ROUND then
+        dst := nvg__roundCapEnd(dst, p1, dx, dy, w, ncap, aa, u0, u1);
+    end;
 
-    if (loop) {
-      // Loop it
-      nvg__vset(dst, verts[0].x, verts[0].y, u0,1); dst++;
-      nvg__vset(dst, verts[1].x, verts[1].y, u1,1); dst++;
-    } else {
-      // Add cap
-      dx = p1^.x - p0^.x;
-      dy = p1^.y - p0^.y;
-      nvg__normalize(&dx, &dy);
-      if (lineCap == NVG_BUTT)
-        dst = nvg__buttCapEnd(dst, p1, dx, dy, w, -aa*0.5f, aa, u0, u1);
-      else if (lineCap == NVG_BUTT || lineCap == NVG_SQUARE)
-        dst = nvg__buttCapEnd(dst, p1, dx, dy, w, w-aa, aa, u0, u1);
-      else if (lineCap == NVG_ROUND)
-        dst = nvg__roundCapEnd(dst, p1, dx, dy, w, ncap, aa, u0, u1);
-    }
+    path^.nstroke := int32(dst - verts);
 
-    path^.nstroke = (int32)(dst - verts);
+    verts := dst;
+  end;
 
-    verts = dst;
-  }
-
-  return 1;
-}
-*)
+  Result := 1;
+end;
 
 function nvg__expandFill(ctx: PNVGContext; w: single; lineJoin: TNVGLineCap; miterLimit: single): int32;
 var
@@ -3201,48 +3241,53 @@ begin
   end;
 end;
 
-(*
-procedure nvgStroke(ctx: PNVGContext)
-{
-  NVGstate* state = nvg__getState(ctx);
-  single scale = nvg__getAverageScale(state^.xform);
-  single strokeWidth = nvg__clampf(state^.strokeWidth * scale, 0.0f, 200.0f);
-  TNVGPaint strokePaint = state^.stroke;
-  const NVGpath* path;
-  int32 i;
+procedure nvgStroke(ctx: PNVGContext);
+var
+  state: PNVGstate;
+  scale: single;
+  strokeWidth: single;
+  strokePaint: TNVGPaint;
+  path: PNVGpath;
+  i: int32;
+  alpha: single;
+begin
+  state := nvg__getState(ctx);
+  scale := nvg__getAverageScale(@state^.xform[0]);
+  strokeWidth := nvg__clampf(state^.strokeWidth * scale, 0.0, 200.0);
+  strokePaint := state^.stroke;
 
+  if strokeWidth < ctx^.fringeWidth then
+  begin
+    // Se lo spessore dello stroke è inferiore alla dimensione del pixel, usa alpha per emulare la copertura
+    alpha := nvg__clampf(strokeWidth / ctx^.fringeWidth, 0.0, 1.0);
+    strokePaint.innerColor.a := strokePaint.innerColor.a * alpha * alpha;
+    strokePaint.outerColor.a := strokePaint.outerColor.a * alpha * alpha;
+    strokeWidth := ctx^.fringeWidth;
+  end;
 
-  if (strokeWidth < ctx^.fringeWidth) {
-    // If the stroke width is less than pixel size, use alpha to emulate coverage.
-    // Since coverage is area, scale by alpha*alpha.
-    single alpha = nvg__clampf(strokeWidth / ctx^.fringeWidth, 0.0f, 1.0f);
-    strokePaint.innerColor.a *= alpha*alpha;
-    strokePaint.outerColor.a *= alpha*alpha;
-    strokeWidth = ctx^.fringeWidth;
-  }
-
-  // Apply global alpha
-  strokePaint.innerColor.a *= state^.alpha;
-  strokePaint.outerColor.a *= state^.alpha;
+  // Applica alpha globale
+  strokePaint.innerColor.a := strokePaint.innerColor.a * state^.alpha;
+  strokePaint.outerColor.a := strokePaint.outerColor.a * state^.alpha;
 
   nvg__flattenPaths(ctx);
 
-  if (ctx^.params.edgeAntiAlias && state^.shapeAntiAlias)
-    nvg__expandStroke(ctx, strokeWidth*0.5f, ctx^.fringeWidth, state^.lineCap, state^.lineJoin, state^.miterLimit);
+  if (ctx^.params^.edgeAntiAlias and state^.shapeAntiAlias) then
+    nvg__expandStroke(ctx, strokeWidth * 0.5, ctx^.fringeWidth, state^.lineCap, state^.lineJoin, state^.miterLimit)
   else
-    nvg__expandStroke(ctx, strokeWidth*0.5f, 0.0f, state^.lineCap, state^.lineJoin, state^.miterLimit);
+    nvg__expandStroke(ctx, strokeWidth * 0.5, 0.0, state^.lineCap, state^.lineJoin, state^.miterLimit);
 
-  ctx^.params.renderStroke(ctx^.params.userPtr, &strokePaint, state^.compositeOperation, &state^.scissor, ctx^.fringeWidth,
-               strokeWidth, ctx^.cache^.paths, ctx^.cache^.npaths);
+  ctx^.params^.renderStroke(ctx^.params^.userPtr, @strokePaint, state^.compositeOperation, @state^.scissor, ctx^.fringeWidth,
+    strokeWidth, ctx^.cache^.paths, ctx^.cache^.npaths);
 
-  // Count triangles
-  for (i = 0; i < ctx^.cache^.npaths; i++) {
-    path = &ctx^.cache^.paths[i];
-    ctx^.strokeTriCount += path^.nstroke-2;
-    ctx^.drawCallCount++;
-  }
-}
-*)
+  // Conta i triangoli
+  for i := 0 to ctx^.cache^.npaths - 1 do
+  begin
+    path := @ctx^.cache^.paths[i];
+    ctx^.strokeTriCount := ctx^.strokeTriCount + (path^.nstroke - 2);
+    Inc(ctx^.drawCallCount);
+  end;
+end;
+
 (*
 // Add fonts
 int32 nvgCreateFont(ctx: PNVGContext; const char* name, const char* filename)
