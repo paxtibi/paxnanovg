@@ -1,14 +1,13 @@
 unit nanovg;
 
 {$mode objfpc}{$H+}
-{
-Traduzione del codice https://github.com/memononen/nanovg
-}
-
+{$ModeSwitch Result}
+{ Traduzione del codice https://github.com/memononen/nanovg }
 interface
 
 uses
-  Classes, SysUtils, fontStash, paxutils;
+  Classes, SysUtils, fontStash,
+  Math, stb_image, paxutils;
 
 const
   NVG_PI = 3.14159265358979323846264338327;
@@ -33,6 +32,7 @@ type
   PNVGPoint = ^TNVGPoint;
   PNVGPathCache = ^TNVGPathCache;
   PNVGState = ^TNVGState;
+  PNVGVertex = ^TNVGVertex;
 
   TNVGColor = record
     case boolean of
@@ -150,11 +150,11 @@ type
     xform: TAffineMatrix;
     extent: array [0..1] of single;
   end;
-  PNVGVertex = ^TNVGVertex;
 
   TNVGVertex = record
     x, y, u, v: single;
   end;
+  TNVGVertexArray = array of TNVGVertex;
 
   TNVGPath = record
     First: int32;
@@ -169,6 +169,7 @@ type
     convex: boolean;
   end;
 
+  TNVGPathArray = array of TNVGPath;
 
   TNVGParams = record
     userPtr: Pointer;
@@ -181,9 +182,9 @@ type
     renderViewport: procedure(uptr: Pointer; Width, Height, devicePixelRatio: single);
     renderCancel: procedure(uptr: Pointer);
     renderFlush: procedure(uptr: Pointer);
-    renderFill: procedure(uptr: Pointer; paint: PNVGpaint; compositeOperation: TNVGCompositeOperationState; scissor: PNVGscissor; fringe: single; bounds: PSingle; paths: PNVGpath; npaths: int32);
-    renderStroke: procedure(uptr: Pointer; paint: PNVGpaint; compositeOperation: TNVGCompositeOperationState; scissor: PNVGscissor; fringe, strokeWidth: single; paths: PNVGpath; npaths: int32);
-    renderTriangles: procedure(uptr: Pointer; paint: PNVGpaint; compositeOperation: TNVGCompositeOperationState; scissor: PNVGscissor; verts: PNVGvertex; nverts: int32; fringe: single);
+    renderFill: procedure(uptr: Pointer; paint: PNVGPaint; compositeOperation: TNVGCompositeOperationState; scissor: PNVGScissor; fringe: single; bounds: PSingle; paths: PNVGPath; npaths: int32);
+    renderStroke: procedure(uptr: Pointer; paint: PNVGPaint; compositeOperation: TNVGCompositeOperationState; scissor: PNVGScissor; fringe, strokeWidth: single; paths: PNVGPath; npaths: int32);
+    renderTriangles: procedure(uptr: Pointer; paint: PNVGPaint; compositeOperation: TNVGCompositeOperationState; scissor: PNVGScissor; verts: PNVGvertex; nverts: int32; fringe: single);
     renderDelete: procedure(uptr: Pointer);
   end;
 
@@ -494,10 +495,10 @@ function nvgCreateImageMem(ctx: PNVGContext; imageFlags: int32; Data: pbyte; nda
 
 // Creates image from specified image data.
 // Returns handle to the image.
-function nvgCreateImageRGBA(ctx: PNVGContext; w, h: int32; imageFlags: int32; const Data: pbyte): int32;
+function nvgCreateImageRGBA(ctx: PNVGContext; w, h: int32; imageFlags: int32; Data: pbyte): int32;
 
 // Updates image data specified by image handle.
-procedure nvgUpdateImage(ctx: PNVGContext; image: int32; const Data: pbyte);
+procedure nvgUpdateImage(ctx: PNVGContext; image: int32; Data: pbyte);
 
 // Returns the dimensions of a created image.
 procedure nvgImageSize(ctx: PNVGContext; image: int32; var w, h: int32);
@@ -655,14 +656,14 @@ procedure nvgStroke(ctx: PNVGContext);
 function nvgCreateFont(ctx: PNVGContext; const Name, filename: pchar): int32;
 
 // fontIndex specifies which font face to load from a .ttf/.ttc file.
-function nvgCreateFontAtIndex(ctx: PNVGContext; const Name, filename: pchar; const fontIndex: int32): int32;
+function nvgCreateFontAtIndex(ctx: PNVGContext; const Name, filename: pchar; fontIndex: int32): int32;
 
 // Creates font by loading it from the specified memory chunk.
 // Returns handle to the font.
 function nvgCreateFontMem(ctx: PNVGContext; const Name: pchar; Data: pbyte; ndata, freeData: int32): int32;
 
 // fontIndex specifies which font face to load from a .ttf/.ttc file.
-function nvgCreateFontMemAtIndex(ctx: PNVGContext; const Name: pbyte; Data: pbyte; ndata, freeData: int32; const fontIndex: int32): int32;
+function nvgCreateFontMemAtIndex(ctx: PNVGContext; Name: pchar; Data: pbyte; ndata, freeData: int32; fontIndex: int32): int32;
 
 // Finds a loaded font of specified name, and returns handle to it, or -1 if the font is not found.
 function nvgFindFont(ctx: PNVGContext; const Name: pchar): int32;
@@ -730,7 +731,7 @@ procedure nvgTextMetrics(ctx: PNVGContext; ascender, descender, lineh: PSingle);
 // Breaks the specified text into lines. If end is specified only the sub-string will be used.
 // White space is stripped at the beginning of the rows, the text is split at word boundaries or when new-line characters are encountered.
 // Words longer than the max width are slit at nearest character (i.e. no hyphenation).
-function nvgTextBreakLines(ctx: PNVGContext; const start, stop: pchar; breakRowWidth: single; rows: PNVGTextRow; maxRows: int32): int32;
+function nvgTextBreakLines(ctx: PNVGContext; start, stop: pchar; breakRowWidth: single; rows: PNVGTextRow; maxRows: int32; out nrows: int32): boolean;
 
 // Constructor and destructor, called by the render back-end.
 function nvgCreateInternal(params: PNVGParams): PNVGContext;
@@ -741,13 +742,13 @@ function nvgInternalParams(ctx: PNVGContext): PNVGparams;
 // Debug function to dump cached path data.
 procedure nvgDebugDumpPathCache(ctx: PNVGContext);
 
-
 operator := (aligns: TNVGAligns): int32;
+operator := (cmd: TNVGCommands): int32;
+operator := (item: TNVGTexture): int32;
+operator := (item: TNVGImageFlags): int32;
 
 implementation
 
-uses
-  Math, stb_image;
 
 operator := (aligns: TNVGAligns): int32;
 begin
@@ -761,19 +762,19 @@ begin
   if NVG_ALIGN_BASELINE in aligns then Result := Result or (1 shl 6);
 end;
 
-operator := (align: TNVGAlign): int32;
+operator := (cmd: TNVGCommands): int32;
 begin
-  Result := Ord(align);
+  Result := Ord(cmd);
 end;
 
-operator := (i: TNVGCommands): single;
+operator := (item: TNVGTexture): int32;
 begin
-  Result := Ord(i) * 1.0;
+  Result := Ord(item);
 end;
 
-operator := (i: TNVGCommands): int32;
+operator := (item: TNVGImageFlags): int32;
 begin
-  Result := Ord(i);
+  Result := Ord(item);
 end;
 
 function IfThen(ifCondition: boolean; ifTrue, ifFalse: TNVGCodePointType): TNVGCodePointType; overload;
@@ -935,6 +936,8 @@ function nvg__compositeOperationState(op: TNVGCompositeOperation): TNVGComposite
 var
   sfactor, dfactor: int32;
 begin
+  sfactor := Ord(NVG_ONE);
+  dfactor := Ord(NVG_ZERO);
   case op of
     NVG_SOURCE_OVER:
     begin
@@ -990,11 +993,6 @@ begin
     begin
       sfactor := Ord(NVG_ONE_MINUS_DST_ALPHA);
       dfactor := Ord(NVG_ONE_MINUS_SRC_ALPHA);
-    end
-    else
-    begin
-      sfactor := Ord(NVG_ONE);
-      dfactor := Ord(NVG_ZERO);
     end;
   end;
 
@@ -1039,7 +1037,7 @@ begin
     if (Result^.params^.renderCreate(Result^.params^.userPtr) = 0) then raise ENullPointerException.Create;
 
     // Init font rendering
-    FillByte(fontParams, sizeof(fontParams), 0);
+    FillByte(fontParams, SizeOf(TFONSParams), 0);
     fontParams.Width := NVG_INIT_FONTIMAGE_SIZE;
     fontParams.Height := NVG_INIT_FONTIMAGE_SIZE;
     fontParams.flags := FONS_ZERO_TOPLEFT;
@@ -1116,7 +1114,9 @@ end;
 procedure nvgEndFrame(ctx: PNVGContext);
 var
   fontImage: int32;
-  i, j, iw, ih: int32;
+  i, j: int32;
+  iw: int32 = 0;
+  ih: int32 = 0;
   nw, nh: int32;
   image: int32;
 begin
@@ -1615,7 +1615,6 @@ begin
   img := stbi_load_from_memory(Data, ndata, @w, @h, @n, 4);
   if (img = nil) then
   begin
-    //    printf("Failed to load %s - %s\n", filename, stbi_failure_reason());
     exit(0);
   end;
   image := nvgCreateImageRGBA(ctx, w, h, imageFlags, img);
@@ -1623,14 +1622,15 @@ begin
   Result := image;
 end;
 
-function nvgCreateImageRGBA(ctx: PNVGContext; w, h: int32; imageFlags: int32; const Data: pbyte): int32;
+function nvgCreateImageRGBA(ctx: PNVGContext; w, h: int32; imageFlags: int32; Data: pbyte): int32;
 begin
   Result := ctx^.params^.renderCreateTexture(ctx^.params^.userPtr, NVG_TEXTURE_RGBA, w, h, imageFlags, Data);
 end;
 
-procedure nvgUpdateImage(ctx: PNVGContext; image: int32; const Data: pbyte);
+procedure nvgUpdateImage(ctx: PNVGContext; image: int32; Data: pbyte);
 var
-  w, h: int32;
+  w: int32 = 0;
+  h: int32 = 0;
 begin
   ctx^.params^.renderGetTextureSize(ctx^.params^.userPtr, image, w, h);
   ctx^.params^.renderUpdateTexture(ctx^.params^.userPtr, image, 0, 0, w, h, Data);
@@ -1710,7 +1710,7 @@ begin
   Result.outerColor := ocol;
 end;
 
-function nvgBoxGradient(ctx: PNVGContext; x, y: single; w, h, r, f: single; icol, ocol: TNVGColor): TNVGPaint;
+function nvgBoxGradient(ctx: PNVGContext; x, y, w, h, r, f: single; icol, ocol: TNVGColor): TNVGPaint;
 begin
   FillChar(Result, sizeof(Result), 0);
 
@@ -1781,7 +1781,7 @@ begin
 end;
 
 
-procedure nvgIntersectScissor(ctx: PNVGContext; x, y: single; w, h: single);
+procedure nvgIntersectScissor(ctx: PNVGContext; x, y, w, h: single);
 var
   state: PNVGState;
   pxform, invxorm: TAffineMatrix;
@@ -1879,11 +1879,11 @@ begin
 end;
 
 
-procedure nvg__appendCommands(ctx: PNVGContext; vals: Psingle; nvals: int32);
+procedure nvg__appendCommands(ctx: PNVGContext; vals: PSingle; nvals: int32);
 var
   state: PNVGState;
   i: int32;
-  cmd: TNVGCommands;
+  cmd: int32;
   commands: PSingle;
   ccommands: int32;
 begin
@@ -1907,26 +1907,26 @@ begin
   i := 0;
   while (i < nvals) do
   begin
-    cmd := TNVGCommands(trunc(vals[i]));
+    cmd := trunc(vals[i]);
     case (cmd) of
-      NVG_MOVETO: begin
+      Ord(NVG_MOVETO): begin
         nvgTransformPoint(@vals[i + 1], @vals[i + 2], state^.xform, vals[i + 1], vals[i + 2]);
         i += 3;
       end;
-      NVG_LINETO: begin
+      Ord(NVG_LINETO): begin
         nvgTransformPoint(@vals[i + 1], @vals[i + 2], state^.xform, vals[i + 1], vals[i + 2]);
         i += 3;
       end;
-      NVG_BEZIERTO: begin
+      Ord(NVG_BEZIERTO): begin
         nvgTransformPoint(@vals[i + 1], @vals[i + 2], state^.xform, vals[i + 1], vals[i + 2]);
         nvgTransformPoint(@vals[i + 3], @vals[i + 4], state^.xform, vals[i + 3], vals[i + 4]);
         nvgTransformPoint(@vals[i + 5], @vals[i + 6], state^.xform, vals[i + 5], vals[i + 6]);
         i += 7;
       end;
-      NVG_CLOSE: begin
+      Ord(NVG_CLOSE): begin
         Inc(i);
       end;
-      NVG_WINDING: begin
+      Ord(NVG_WINDING): begin
         i += 2;
       end;
       else
@@ -2167,7 +2167,7 @@ var
   i, j: int32;
   cp1, cp2, p: psingle;
   area: single;
-  cmd: TNVGCommands;
+  cmd: int32;
 begin
   cache := ctx^.cache;
   //  NVGstate* state = nvg__getState(ctx);
@@ -2179,22 +2179,22 @@ begin
   i := 0;
   while (i < ctx^.ncommands) do
   begin
-    cmd := TNVGCommands(trunc(ctx^.commands[i]));
+    cmd := trunc(ctx^.commands[i]);
     case cmd of
-      NVG_MOVETO:
+      Ord(NVG_MOVETO):
       begin
         nvg__addPath(ctx);
         p := @ctx^.commands[i + 1];
         nvg__addPoint(ctx, p[0], p[1], Ord(NVG_PT_CORNER));
         Inc(i, 3);
       end;
-      NVG_LINETO:
+      Ord(NVG_LINETO):
       begin
         p := @ctx^.commands[i + 1];
         nvg__addPoint(ctx, p[0], p[1], Ord(NVG_PT_CORNER));
         Inc(i, 3);
       end;
-      NVG_BEZIERTO:
+      Ord(NVG_BEZIERTO):
       begin
         last := nvg__lastPoint(ctx);
         if (last <> nil) then
@@ -2206,11 +2206,11 @@ begin
         end;
         i += 7;
       end;
-      NVG_CLOSE: begin
+      Ord(NVG_CLOSE): begin
         nvg__closePath(ctx);
         Inc(i);
       end;
-      NVG_WINDING: begin
+      Ord(NVG_WINDING): begin
         nvg__pathWinding(ctx, TNVGWinding(trunc(ctx^.commands[i + 1])));
         i += 2;
       end
@@ -3005,7 +3005,7 @@ procedure nvgMoveTo(ctx: PNVGContext; x, y: single);
 var
   vals: array[0..2] of single;
 begin
-  vals[0] := NVG_MOVETO;
+  vals[0] := int32(NVG_MOVETO) * 1.0;
   vals[1] := x;
   vals[2] := y;
   nvg__appendCommands(ctx, @vals[0], 3);
@@ -3015,7 +3015,7 @@ procedure nvgLineTo(ctx: PNVGContext; x, y: single);
 var
   vals: array[0..2] of single;
 begin
-  vals[0] := NVG_LINETO;
+  vals[0] := int32(NVG_LINETO) * 1.0;
   vals[1] := x;
   vals[2] := y;
   nvg__appendCommands(ctx, @vals[0], 3);
@@ -3025,7 +3025,7 @@ procedure nvgBezierTo(ctx: PNVGContext; c1x, c1y, c2x, c2y, x, y: single);
 var
   vals: array[0..6] of single;
 begin
-  vals[0] := NVG_BEZIERTO;
+  vals[0] := int32(NVG_BEZIERTO) * 1.0;
   vals[1] := c1x;
   vals[2] := c1y;
   vals[3] := c2x;
@@ -3042,7 +3042,7 @@ var
 begin
   x0 := ctx^.commandx;
   y0 := ctx^.commandy;
-  vals[0] := NVG_BEZIERTO;
+  vals[0] := int32(NVG_BEZIERTO);
   vals[1] := x0 + 2.0 / 3.0 * (cx - x0);
   vals[2] := y0 + 2.0 / 3.0 * (cy - y0);
   vals[3] := x + 2.0 / 3.0 * (cx - x);
@@ -3110,7 +3110,7 @@ procedure nvgClosePath(ctx: PNVGContext);
 var
   vals: array[0..0] of single;
 begin
-  vals[0] := NVG_CLOSE;
+  vals[0] := int32(NVG_CLOSE);
   nvg__appendCommands(ctx, @vals[0], 1);
 end;
 
@@ -3118,7 +3118,7 @@ procedure nvgPathWinding(ctx: PNVGContext; dir: int32);
 var
   vals: array[0..1] of single;
 begin
-  vals[0] := NVG_WINDING;
+  vals[0] := int32(NVG_WINDING);
   vals[1] := dir;
   nvg__appendCommands(ctx, @vals[0], 2);
 end;
@@ -3204,7 +3204,7 @@ begin
     end
     else
     begin
-      vals[nvals] := NVG_BEZIERTO;
+      vals[nvals] := int32(NVG_BEZIERTO);
       Inc(nvals);
       vals[nvals] := px + ptanx;
       Inc(nvals);
@@ -3231,21 +3231,21 @@ end;
 
 procedure nvgRect(ctx: PNVGContext; x, y, w, h: single);
 var
-  vals: array[0..9] of single;
+  vals: array[0..12] of single;
 begin
-  vals[0] := NVG_MOVETO;
+  vals[0] := int32(NVG_MOVETO);
   vals[1] := x;
   vals[2] := y;
-  vals[3] := NVG_LINETO;
+  vals[3] := int32(NVG_LINETO);
   vals[4] := x;
   vals[5] := y + h;
-  vals[6] := NVG_LINETO;
+  vals[6] := int32(NVG_LINETO);
   vals[7] := x + w;
   vals[8] := y + h;
-  vals[9] := NVG_LINETO;
+  vals[9] := int32(NVG_LINETO);
   vals[10] := x + w;
   vals[11] := y;
-  vals[12] := NVG_CLOSE;
+  vals[12] := int32(NVG_CLOSE);
   nvg__appendCommands(ctx, @vals[0], 13);
 end;
 
@@ -3278,50 +3278,50 @@ begin
     rxTL := Min(radTopLeft, halfw) * Sign(w);
     ryTL := Min(radTopLeft, halfh) * Sign(h);
 
-    vals[0] := NVG_MOVETO;
+    vals[0] := int32(NVG_MOVETO);
     vals[1] := x;
     vals[2] := y + ryTL;
-    vals[3] := NVG_LINETO;
+    vals[3] := int32(NVG_LINETO);
     vals[4] := x;
     vals[5] := y + h - ryBL;
-    vals[6] := NVG_BEZIERTO;
+    vals[6] := int32(NVG_BEZIERTO);
     vals[7] := x;
     vals[8] := y + h - ryBL * (1 - NVG_KAPPA90);
     vals[9] := x + rxBL * (1 - NVG_KAPPA90);
     vals[10] := y + h;
     vals[11] := x + rxBL;
     vals[12] := y + h;
-    vals[13] := NVG_LINETO;
+    vals[13] := int32(NVG_LINETO);
     vals[14] := x + w - rxBR;
     vals[15] := y + h;
-    vals[16] := NVG_BEZIERTO;
+    vals[16] := int32(NVG_BEZIERTO);
     vals[17] := x + w - rxBR * (1 - NVG_KAPPA90);
     vals[18] := y + h;
     vals[19] := x + w;
     vals[20] := y + h - ryBR * (1 - NVG_KAPPA90);
     vals[21] := x + w;
     vals[22] := y + h - ryBR;
-    vals[23] := NVG_LINETO;
+    vals[23] := int32(NVG_LINETO);
     vals[24] := x + w;
     vals[25] := y + ryTR;
-    vals[26] := NVG_BEZIERTO;
+    vals[26] := int32(NVG_BEZIERTO);
     vals[27] := x + w;
     vals[28] := y + ryTR * (1 - NVG_KAPPA90);
     vals[29] := x + w - rxTR * (1 - NVG_KAPPA90);
     vals[30] := y;
     vals[31] := x + w - rxTR;
     vals[32] := y;
-    vals[33] := NVG_LINETO;
+    vals[33] := int32(NVG_LINETO);
     vals[34] := x + rxTL;
     vals[35] := y;
-    vals[36] := NVG_BEZIERTO;
+    vals[36] := int32(NVG_BEZIERTO);
     vals[37] := x + rxTL * (1 - NVG_KAPPA90);
     vals[38] := y;
     vals[39] := x;
     vals[40] := y + ryTL * (1 - NVG_KAPPA90);
     vals[41] := x;
     vals[42] := y + ryTL;
-    vals[43] := NVG_CLOSE;
+    vals[43] := int32(NVG_CLOSE);
 
     nvg__appendCommands(ctx, vals, Length(vals));
   end;
@@ -3331,38 +3331,38 @@ procedure nvgEllipse(ctx: PNVGContext; cx, cy, rx, ry: single);
 var
   vals: array[0..31] of single;
 begin
-  vals[0] := NVG_MOVETO;
+  vals[0] := int32(NVG_MOVETO);
   vals[1] := cx - rx;
   vals[2] := cy;
-  vals[3] := NVG_BEZIERTO;
+  vals[3] := int32(NVG_BEZIERTO);
   vals[4] := cx - rx;
   vals[5] := cy + ry * NVG_KAPPA90;
   vals[6] := cx - rx * NVG_KAPPA90;
   vals[7] := cy + ry;
   vals[8] := cx;
   vals[9] := cy + ry;
-  vals[10] := NVG_BEZIERTO;
+  vals[10] := int32(NVG_BEZIERTO);
   vals[11] := cx + rx * NVG_KAPPA90;
   vals[12] := cy + ry;
   vals[13] := cx + rx;
   vals[14] := cy + ry * NVG_KAPPA90;
   vals[15] := cx + rx;
   vals[16] := cy;
-  vals[17] := NVG_BEZIERTO;
+  vals[17] := int32(NVG_BEZIERTO);
   vals[18] := cx + rx;
   vals[19] := cy - ry * NVG_KAPPA90;
   vals[20] := cx + rx * NVG_KAPPA90;
   vals[21] := cy - ry;
   vals[22] := cx;
   vals[23] := cy - ry;
-  vals[24] := NVG_BEZIERTO;
+  vals[24] := int32(NVG_BEZIERTO);
   vals[25] := cx - rx * NVG_KAPPA90;
   vals[26] := cy - ry;
   vals[27] := cx - rx;
   vals[28] := cy - ry * NVG_KAPPA90;
   vals[29] := cx - rx;
   vals[30] := cy;
-  vals[31] := NVG_CLOSE;
+  vals[31] := int32(NVG_CLOSE);
 
   nvg__appendCommands(ctx, vals, Length(vals));
 end;
@@ -3373,9 +3373,11 @@ begin
 end;
 
 procedure nvgDebugDumpPathCache(ctx: PNVGContext);
+{
 var
   path: PNVGPath;
   i, j: int32;
+}
 begin
   (*
   printf("Dumping %d cached paths\n", ctx^.cache^.npaths);
@@ -3395,12 +3397,6 @@ begin
   }
   *)
 end;
-
-operator := (arg: TNVGAligns): TFONSAligns;
-begin
-
-end;
-
 
 procedure nvgFill(ctx: PNVGContext);
 var
@@ -3482,46 +3478,46 @@ end;
 
 
 // Add fonts
-function nvgCreateFont(ctx: PNVGContext; const Name, filename: pchar): longint;
+function nvgCreateFont(ctx: PNVGContext; const Name, filename: pchar): int32;
 begin
   Result := fonsAddFont(ctx^.fs, Name, filename, 0);
 end;
 
-function nvgCreateFontAtIndex(ctx: PNVGContext; const Name, filename: pchar; const fontIndex: int32): int32;
+function nvgCreateFontAtIndex(ctx: PNVGContext; const Name, filename: pchar; fontIndex: int32): int32;
 begin
   Result := fonsAddFont(ctx^.fs, Name, filename, fontIndex);
 end;
 
-function nvgCreateFontMem(ctx: PNVGContext; Name: pchar; Data: pbyte; ndata: longint; freeData: longint): longint;
+function nvgCreateFontMem(ctx: PNVGContext; const Name: pchar; Data: pbyte; ndata, freeData: int32): int32;
 begin
   Result := fonsAddFontMem(ctx^.fs, Name, Data, ndata, freeData, 0);
 end;
 
-function nvgCreateFontMemAtIndex(ctx: PNVGContext; Name: pchar; Data: pbyte; ndata: longint; freeData: longint; fontIndex: longint): longint;
+function nvgCreateFontMemAtIndex(ctx: PNVGContext; Name: pchar; Data: pbyte; ndata, freeData: int32; fontIndex: int32): int32;
 begin
   Result := fonsAddFontMem(ctx^.fs, Name, Data, ndata, freeData, fontIndex);
 end;
 
-function nvgFindFont(ctx: PNVGContext; const Name: pchar): longint;
+function nvgFindFont(ctx: PNVGContext; const Name: pchar): int32;
 begin
   if Name = nil then
     Exit(-1);
   Result := fonsGetFontByName(ctx^.fs, Name);
 end;
 
-function nvgAddFallbackFontId(ctx: PNVGContext; baseFont, fallbackFont: int32): int32;
+function nvgAddFallbackFontId(ctx: PNVGContext; baseFont: int32; fallbackFont: int32): int32;
 begin
   if (baseFont = -1) or (fallbackFont = -1) then
     Exit(0);
   Result := fonsAddFallbackFont(ctx^.fs, baseFont, fallbackFont);
 end;
 
-function nvgAddFallbackFont(ctx: PNVGContext; const baseFont, fallbackFont: pchar): longint;
+function nvgAddFallbackFont(ctx: PNVGContext; const baseFont, fallbackFont: pchar): int32;
 begin
   Result := nvgAddFallbackFontId(ctx, nvgFindFont(ctx, baseFont), nvgFindFont(ctx, fallbackFont));
 end;
 
-procedure nvgResetFallbackFontsId(ctx: PNVGContext; baseFont: longint);
+procedure nvgResetFallbackFontsId(ctx: PNVGContext; baseFont: int32);
 begin
   fonsResetFallbackFont(ctx^.fs, baseFont);
 end;
@@ -3622,7 +3618,8 @@ end;
 
 function nvg__allocTextAtlas(ctx: PNVGContext): boolean;
 var
-  iw, ih: int32;
+  iw: int32 = 0;
+  ih: int32 = 0;
 begin
   Result := False;
   nvg__flushTextTexture(ctx);
@@ -3808,8 +3805,7 @@ begin
 
   state^.textAlign := int32(NVG_ALIGN_LEFT) or valign;
   repeat
-    nrows := nvgTextBreakLines(ctx, start, stop, breakRowWidth, @rows[0], 2);
-    if nrows > 0 then
+    if nvgTextBreakLines(ctx, start, stop, breakRowWidth, @rows[0], 2, nrows) then
     begin
       for i := 0 to nrows - 1 do
       begin
@@ -3828,7 +3824,7 @@ begin
   state^.textAlign := oldAlign;
 end;
 
-function nvgTextGlyphPositions(ctx: PNVGContext; x, y: single; start, stop: pchar; positions: PNVGglyphPosition; maxPositions: int32): int32;
+function nvgTextGlyphPositions(ctx: PNVGContext; x, y: single; start, stop: pchar; positions: PNVGGlyphPosition; maxPositions: int32): int32;
 var
   state: PNVGState;
   scale, invscale: single;
@@ -3890,7 +3886,7 @@ begin
   Result := npos;
 end;
 
-function nvgTextBreakLines(ctx: PNVGContext; start, stop: pchar; breakRowWidth: single; rows: PNVGtextRow; maxRows: int32; out nrows: int32): boolean;
+function nvgTextBreakLines(ctx: PNVGContext; start, stop: pchar; breakRowWidth: single; rows: PNVGTextRow; maxRows: int32; out nrows: int32): boolean;
 var
   state: PNVGState;
   scale, invscale, rowStartX, rowWidth, rowMinX, rowMaxX, nextWidth: single;

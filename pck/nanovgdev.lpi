@@ -26,6 +26,9 @@
     </RunParams>
     <RequiredPackages>
       <Item>
+        <PackageName Value="paxgl"/>
+      </Item>
+      <Item>
         <PackageName Value="paxutils_package"/>
       </Item>
     </RequiredPackages>
@@ -47,11 +50,26 @@
       <OtherUnitFiles Value="..\src"/>
       <UnitOutputDirectory Value="..\lib\$(TargetCPU)-$(TargetOS)"/>
     </SearchPaths>
+    <CodeGeneration>
+      <Checks>
+        <IOChecks Value="True"/>
+        <OverflowChecks Value="True"/>
+        <StackChecks Value="True"/>
+      </Checks>
+    </CodeGeneration>
     <Linking>
       <Debugging>
         <DebugInfoType Value="dsDwarf3"/>
       </Debugging>
     </Linking>
+    <Other>
+      <ConfigFile>
+        <StopAfterErrCount Value="100"/>
+      </ConfigFile>
+      <CompilerMessages>
+        <IgnoredMessages idx5060="True" idx5057="True"/>
+      </CompilerMessages>
+    </Other>
   </CompilerOptions>
   <Debugging>
     <Exceptions>
