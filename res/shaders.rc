@@ -1,4 +1,3 @@
 SHADER_HEADER RCDATA "shader_header.glsl"
 FILL_VERT_SHADER RCDATA "fill_vert_shader.glsl"
-FILL_FRAG_SHADER RCDATA "fill_frag_shader.glsl
-
+FILL_FRAG_SHADER RCDATA "fill_frag_shader.glsl"

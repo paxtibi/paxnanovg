@@ -1,27 +1,12 @@
-unit nanovg_gl;
-{
-  Copyright (c) 2009-2013 Mikko Mononen memon@inside.org
-  Questo software è fornito "così com'è", senza alcuna garanzia esplicita o implicita.
-  In nessun caso gli autori saranno responsabili per eventuali danni derivanti dall'uso di questo software.
-  È concessa l'autorizzazione a chiunque di utilizzare questo software per qualsiasi scopo,
-  incluse applicazioni commerciali, e di modificarlo e ridistribuirlo liberamente,
-  soggetto alle seguenti restrizioni:
-  1. L'origine di questo software non deve essere rappresentata in modo errato; non devi
-     dichiarare di aver scritto il software originale. Se utilizzi questo software in un prodotto,
-     un riconoscimento nella documentazione del prodotto sarebbe apprezzato ma non è obbligatorio.
-  2. Le versioni modificate del codice sorgente devono essere chiaramente contrassegnate come tali
-     e non devono essere rappresentate come il software originale.
-  3. Questo avviso non può essere rimosso o modificato da nessuna distribuzione del codice sorgente.
-}
+unit pax.nanovg.gl;
 {$mode objfpc}{$H+}
 
 interface
 
 uses
-  Classes, Math, SysUtils, NanoVG, pax.gl, paxutils;
+  Classes, Math, SysUtils, pax.nanovg, paxutils, pax.gl;
 
 const
-  // Flag di creazione
   NVG_ANTIALIAS = 1 shl 0; // Indica se viene utilizzato l'antialiasing basato sulla geometria
   NVG_STENCIL_STROKES = 1 shl 1; // Indica se i tratti usano il buffer stencil (più lento, ma gestisce sovrapposizioni)
   NVG_DEBUG = 1 shl 2; // Abilita controlli di debug aggiuntivi
@@ -122,7 +107,7 @@ type
   PGLNVGFragUniforms = ^TGLNVGFragUniforms;
 
   // Contesto OpenGL
-  TGLNVGContext = record
+  TGLContext = class
     Shader: TGLNVGShader; // Shader
     Textures: PGLNVGTexture; // Array di texture
     View: array[0..1] of single; // Dimensioni viewport
@@ -160,12 +145,17 @@ type
     {$ENDIF}
     DummyTex: int32; // Texture vuota
   end;
-  PGLNVGContext = ^TGLNVGContext;
 
-function nvgCreateGL2(Flags: int32): PNVGContext;
-procedure nvgDeleteGL2(Ctx: PNVGContext);
-function nvglCreateImageFromHandleGL2(Ctx: PNVGContext; TextureID: GLuint; W, H, ImageFlags: int32): int32;
-function nvglImageHandleGL2(Ctx: PNVGContext; Image: int32): GLuint;
+function nvgCreateGL2(Flags: int32): TNVContext;
+procedure nvgDeleteGL2(Ctx: TNVContext);
+function nvglCreateImageFromHandleGL2(Ctx: TNVContext; TextureID: GLuint; W, H, ImageFlags: int32): int32;
+function nvglImageHandleGL2(Ctx: TNVContext; Image: int32): GLuint;
+
+function nvgCreateGL3(Flags: int32): TNVContext; inline;
+procedure nvgDeleteGL3(Ctx: TNVContext); inline;
+function nvglCreateImageFromHandleGL3(Ctx: TNVContext; TextureID: GLuint; W, H, ImageFlags: int32): int32; inline;
+function nvglImageHandleGL3(Ctx: TNVContext; Image: int32): GLuint; inline;
+
 
 implementation
 
@@ -175,7 +165,7 @@ uses
   {$endif}
   LResources;
 
-  {$R ..\res\shaders.rc}
+  {$R ..\res\shaders.res}
 
 
 generic function IfThen<T>(val: boolean; const iftrue: T; const iffalse: T): T; inline; overload;
@@ -244,7 +234,7 @@ begin
 end;
 {$ENDIF}
 
-procedure glnvg__BindTexture(GL: PGLNVGContext; Tex: GLuint);
+procedure glnvg__BindTexture(GL: TGLContext; Tex: GLuint);
 begin
   {$IFDEF NANOVG_GL_USE_STATE_FILTER}
   if GL^.BoundTexture <> Tex then
@@ -253,11 +243,11 @@ begin
     glBindTexture(GL_TEXTURE_2D, Tex);
   end;
   {$ELSE}
-  GLLib.glBindTexture(GL_TEXTURE_2D, Tex);
+  OpenGL.glBindTexture(GL_TEXTURE_2D, Tex);
   {$ENDIF}
 end;
 
-procedure glnvg__StencilMask(GL: PGLNVGContext; Mask: GLuint);
+procedure glnvg__StencilMask(GL: TGLContext; Mask: GLuint);
 begin
   {$IFDEF NANOVG_GL_USE_STATE_FILTER}
   if GL^.StencilMask <> Mask then
@@ -266,11 +256,11 @@ begin
     glStencilMask(Mask);
   end;
   {$ELSE}
-  GLLib.glStencilMask(Mask);
+  OpenGL.glStencilMask(Mask);
   {$ENDIF}
 end;
 
-procedure glnvg__StencilFunc(GL: PGLNVGContext; Func: GLenum; Ref: GLint; Mask: GLuint);
+procedure glnvg__StencilFunc(GL: TGLContext; Func: GLenum; Ref: GLint; Mask: GLuint);
 begin
   {$IFDEF NANOVG_GL_USE_STATE_FILTER}
   if (GL^.StencilFunc <> Func) or (GL^.StencilFuncRef <> Ref) or (GL^.StencilFuncMask <> Mask) then
@@ -281,11 +271,11 @@ begin
     glStencilFunc(Func, Ref, Mask);
   end;
   {$ELSE}
-  GLLib.glStencilFunc(Func, Ref, Mask);
+  OpenGL.glStencilFunc(Func, Ref, Mask);
   {$ENDIF}
 end;
 
-procedure glnvg__BlendFuncSeparate(GL: PGLNVGContext; Blend: PGLNVGBlend);
+procedure glnvg__BlendFuncSeparate(GL: TGLContext; Blend: PGLNVGBlend);
 begin
   {$IFDEF NANOVG_GL_USE_STATE_FILTER}
   if (GL^.BlendFunc.SrcRGB <> Blend^.SrcRGB) or
@@ -297,71 +287,71 @@ begin
     glBlendFuncSeparate(Blend^.SrcRGB, Blend^.DstRGB, Blend^.SrcAlpha, Blend^.DstAlpha);
   end;
   {$ELSE}
-  GLLib.glBlendFuncSeparate(Blend^.SrcRGB, Blend^.DstRGB, Blend^.SrcAlpha, Blend^.DstAlpha);
+  OpenGL.glBlendFuncSeparate(Blend^.SrcRGB, Blend^.DstRGB, Blend^.SrcAlpha, Blend^.DstAlpha);
   {$ENDIF}
 end;
 
-function glnvg__AllocTexture(GL: PGLNVGContext): PGLNVGTexture;
+function glnvg__AllocTexture(GL: TGLContext): PGLNVGTexture;
 var
   I: int32;
   CTex: int32;
 begin
   Result := nil;
-  for I := 0 to GL^.NTextures - 1 do
+  for I := 0 to GL.NTextures - 1 do
   begin
-    if GL^.Textures[I].ID = 0 then
+    if GL.Textures[I].ID = 0 then
     begin
-      Result := @GL^.Textures[I];
+      Result := @GL.Textures[I];
       Break;
     end;
   end;
 
   if Result = nil then
   begin
-    if GL^.NTextures + 1 > GL^.CTextures then
+    if GL.NTextures + 1 > GL.CTextures then
     begin
-      CTex := glnvg__MaxI(GL^.NTextures + 1, 4) + GL^.CTextures div 2;
-      ReallocMem(GL^.Textures, SizeOf(TGLNVGTexture) * CTex);
-      if GL^.Textures = nil then
+      CTex := glnvg__MaxI(GL.NTextures + 1, 4) + GL.CTextures div 2;
+      ReallocMem(GL.Textures, SizeOf(TGLNVGTexture) * CTex);
+      if GL.Textures = nil then
         Exit;
-      GL^.CTextures := CTex;
+      GL.CTextures := CTex;
     end;
-    Result := @GL^.Textures[GL^.NTextures];
-    Inc(GL^.NTextures);
+    Result := @GL.Textures[GL.NTextures];
+    Inc(GL.NTextures);
   end;
 
   FillChar(Result^, SizeOf(TGLNVGTexture), 0);
-  Inc(GL^.TextureID);
-  Result^.ID := GL^.TextureID;
+  Inc(GL.TextureID);
+  Result^.ID := GL.TextureID;
 end;
 
-function glnvg__FindTexture(GL: PGLNVGContext; ID: int32): PGLNVGTexture;
+function glnvg__FindTexture(GL: TGLContext; ID: int32): PGLNVGTexture;
 var
   I: int32;
 begin
   Result := nil;
-  for I := 0 to GL^.NTextures - 1 do
+  for I := 0 to GL.NTextures - 1 do
   begin
-    if GL^.Textures[I].ID = ID then
+    if GL.Textures[I].ID = ID then
     begin
-      Result := @GL^.Textures[I];
+      Result := @GL.Textures[I];
       Break;
     end;
   end;
 end;
 
-function glnvg__DeleteTexture(GL: PGLNVGContext; ID: int32): boolean;
+function glnvg__DeleteTexture(GL: TGLContext; ID: int32): boolean;
 var
   I: int32;
 begin
   Result := False;
-  for I := 0 to GL^.NTextures - 1 do
+  for I := 0 to GL.NTextures - 1 do
   begin
-    if GL^.Textures[I].ID = ID then
+    if GL.Textures[I].ID = ID then
     begin
-      if (GL^.Textures[I].Tex <> 0) and ((GL^.Textures[I].Flags and NVG_IMAGE_NODELETE) = 0) then
-        GLLib.glDeleteTextures(1, @GL^.Textures[I].Tex);
-      FillChar(GL^.Textures[I], SizeOf(TGLNVGTexture), 0);
+      if (GL.Textures[I].Tex <> 0) and ((GL.Textures[I].Flags and NVG_IMAGE_NODELETE) = 0) then
+        OpenGL.glDeleteTextures(1, @GL.Textures[I].Tex);
+      FillChar(GL.Textures[I], SizeOf(TGLNVGTexture), 0);
       Result := True;
       Break;
     end;
@@ -374,7 +364,7 @@ var
   Len: GLsizei;
 begin
   Len := 0;
-  GLLib.glGetShaderInfoLog(Shader, 512, @Len, @Str[0]);
+  OpenGL.glGetShaderInfoLog(Shader, 512, @Len, @Str[0]);
   if Len > 512 then
     Len := 512;
   Str[Len] := #0;
@@ -387,20 +377,20 @@ var
   Len: GLsizei;
 begin
   Len := 0;
-  GLLib.glGetProgramInfoLog(Prog, 512, @Len, @Str[0]);
+  OpenGL.glGetProgramInfoLog(Prog, 512, @Len, @Str[0]);
   if Len > 512 then
     Len := 512;
   Str[Len] := #0;
   WriteLn(Format('Program %s error:'#10'%s', [Name, Str]));
 end;
 
-procedure glnvg__CheckError(GL: PGLNVGContext; Str: string);
+procedure glnvg__CheckError(GL: TGLContext; Str: string);
 var
   Err: GLenum;
 begin
-  if (GL^.Flags and NVG_DEBUG) = 0 then
+  if (GL.Flags and NVG_DEBUG) = 0 then
     Exit;
-  Err := GLLib.glGetError();
+  Err := OpenGL.glGetError();
   if Err <> GL_NO_ERROR then
     WriteLn(Format('Error %08x after %s', [Err, Str]));
 end;
@@ -412,53 +402,53 @@ var
   Str: array[0..2] of pchar;
 begin
   FillChar(Shader^, SizeOf(TGLNVGShader), 0);
-  Prog := GLLib.glCreateProgram();
-  Vert := GLLib.glCreateShader(GL_VERTEX_SHADER);
-  Frag := GLLib.glCreateShader(GL_FRAGMENT_SHADER);
+  Prog := OpenGL.glCreateProgram();
+  Vert := OpenGL.glCreateShader(GL_VERTEX_SHADER);
+  Frag := OpenGL.glCreateShader(GL_FRAGMENT_SHADER);
 
   Str[0] := PChar(Header);
   Str[1] := IfThen(Opts <> nil, PChar(Opts), '');
   Str[2] := PChar(VShader);
-  GLLib.glShaderSource(Vert, 3, @Str[0], nil);
+  OpenGL.glShaderSource(Vert, 3, @Str[0], nil);
   Str[2] := PChar(FShader);
-  GLLib.glShaderSource(Frag, 3, @Str[0], nil);
+  OpenGL.glShaderSource(Frag, 3, @Str[0], nil);
 
-  GLLib.glCompileShader(Vert);
-  GLLib.glGetShaderiv(Vert, GL_COMPILE_STATUS, @Status);
+  OpenGL.glCompileShader(Vert);
+  OpenGL.glGetShaderiv(Vert, GL_COMPILE_STATUS, @Status);
   if Status <> GL_TRUE then
   begin
     glnvg__DumpShaderError(Vert, Name, 'vert');
-    GLLib.glDeleteShader(Vert);
-    GLLib.glDeleteShader(Frag);
-    GLLib.glDeleteProgram(Prog);
+    OpenGL.glDeleteShader(Vert);
+    OpenGL.glDeleteShader(Frag);
+    OpenGL.glDeleteProgram(Prog);
     Exit(False);
   end;
 
-  GLLib.glCompileShader(Frag);
-  GLLib.glGetShaderiv(Frag, GL_COMPILE_STATUS, @Status);
+  OpenGL.glCompileShader(Frag);
+  OpenGL.glGetShaderiv(Frag, GL_COMPILE_STATUS, @Status);
   if Status <> GL_TRUE then
   begin
     glnvg__DumpShaderError(Frag, Name, 'frag');
-    GLLib.glDeleteShader(Vert);
-    GLLib.glDeleteShader(Frag);
-    GLLib.glDeleteProgram(Prog);
+    OpenGL.glDeleteShader(Vert);
+    OpenGL.glDeleteShader(Frag);
+    OpenGL.glDeleteProgram(Prog);
     Exit(False);
   end;
 
-  GLLib.glAttachShader(Prog, Vert);
-  GLLib.glAttachShader(Prog, Frag);
+  OpenGL.glAttachShader(Prog, Vert);
+  OpenGL.glAttachShader(Prog, Frag);
 
-  GLLib.glBindAttribLocation(Prog, 0, 'vertex');
-  GLLib.glBindAttribLocation(Prog, 1, 'tcoord');
+  OpenGL.glBindAttribLocation(Prog, 0, 'vertex');
+  OpenGL.glBindAttribLocation(Prog, 1, 'tcoord');
 
-  GLLib.glLinkProgram(Prog);
-  GLLib.glGetProgramiv(Prog, GL_LINK_STATUS, @Status);
+  OpenGL.glLinkProgram(Prog);
+  OpenGL.glGetProgramiv(Prog, GL_LINK_STATUS, @Status);
   if Status <> GL_TRUE then
   begin
     glnvg__DumpProgramError(Prog, Name);
-    GLLib.glDeleteShader(Vert);
-    GLLib.glDeleteShader(Frag);
-    GLLib.glDeleteProgram(Prog);
+    OpenGL.glDeleteShader(Vert);
+    OpenGL.glDeleteShader(Frag);
+    OpenGL.glDeleteProgram(Prog);
     Exit(False);
   end;
 
@@ -471,33 +461,33 @@ end;
 procedure glnvg__DeleteShader(Shader: PGLNVGShader);
 begin
   if Shader^.Prog <> 0 then
-    GLLib.glDeleteProgram(Shader^.Prog);
+    OpenGL.glDeleteProgram(Shader^.Prog);
   if Shader^.Vert <> 0 then
-    GLLib.glDeleteShader(Shader^.Vert);
+    OpenGL.glDeleteShader(Shader^.Vert);
   if Shader^.Frag <> 0 then
-    GLLib.glDeleteShader(Shader^.Frag);
+    OpenGL.glDeleteShader(Shader^.Frag);
 end;
 
 procedure glnvg__GetUniforms(Shader: PGLNVGShader);
 begin
-  Shader^.Loc[GLNVG_LOC_VIEWSIZE] := GLLib.glGetUniformLocation(Shader^.Prog, 'viewSize');
-  Shader^.Loc[GLNVG_LOC_TEX] := GLLib.glGetUniformLocation(Shader^.Prog, 'tex');
+  Shader^.Loc[GLNVG_LOC_VIEWSIZE] := OpenGL.glGetUniformLocation(Shader^.Prog, 'viewSize');
+  Shader^.Loc[GLNVG_LOC_TEX] := OpenGL.glGetUniformLocation(Shader^.Prog, 'tex');
   {$IFDEF NANOVG_GL_USE_UNIFORMBUFFER}
   Shader^.Loc[GLNVG_LOC_FRAG] := glGetUniformBlockIndex(Shader^.Prog, 'frag');
   {$ELSE}
-  Shader^.Loc[GLNVG_LOC_FRAG] := GLLib.glGetUniformLocation(Shader^.Prog, 'frag');
+  Shader^.Loc[GLNVG_LOC_FRAG] := OpenGL.glGetUniformLocation(Shader^.Prog, 'frag');
   {$ENDIF}
 end;
 
-function glnvg__RenderCreateTexture(Uptr: Pointer; TexType, W, H, ImageFlags: int32; Data: pbyte): int32; forward;
+function glnvg__RenderCreateTexture(Uptr: Pointer; TexType: TNVGTexture; W, H, ImageFlags: int32; Data: pbyte): int32; forward;
 
 function glnvg__RenderCreate(Uptr: Pointer): int32;
 var
-  GL: PGLNVGContext;
+  GL: TGLContext;
   Align: int32;
   ShaderHeader, FillVertShader, FillFragShader: string;
 begin
-  GL := PGLNVGContext(Uptr);
+  GL := TGLContext(Uptr);
   Align := 4;
 
   glnvg__CheckError(GL, 'init');
@@ -507,47 +497,47 @@ begin
   FillVertShader := LoadResourceString('FILL_VERT_SHADER');
   FillFragShader := LoadResourceString('FILL_FRAG_SHADER');
 
-  if (GL^.Flags and NVG_ANTIALIAS) <> 0 then
+  if (GL.Flags and NVG_ANTIALIAS) <> 0 then
   begin
-    if not glnvg__CreateShader(@GL^.Shader, 'shader', ShaderHeader, '#define EDGE_AA 1'#10, FillVertShader, FillFragShader) then
+    if not glnvg__CreateShader(@GL.Shader, 'shader', ShaderHeader, '#define EDGE_AA 1'#10, FillVertShader, FillFragShader) then
       Exit(0);
   end
   else
   begin
-    if not glnvg__CreateShader(@GL^.Shader, 'shader', ShaderHeader, '', FillVertShader, FillFragShader) then
+    if not glnvg__CreateShader(@GL.Shader, 'shader', ShaderHeader, '', FillVertShader, FillFragShader) then
       Exit(0);
   end;
 
   glnvg__CheckError(GL, 'uniform locations');
-  glnvg__GetUniforms(@GL^.Shader);
+  glnvg__GetUniforms(@GL.Shader);
 
   {$IFDEF NANOVG_GL3}
-  glGenVertexArrays(1, @GL^.VertArr);
+  glGenVertexArrays(1, @GL.VertArr);
   {$ENDIF}
-  glGenBuffers(1, @GL^.VertBuf);
+  OpenGL.glGenBuffers(1, @GL.VertBuf);
 
   {$IFDEF NANOVG_GL_USE_UNIFORMBUFFER}
-  glUniformBlockBinding(GL^.Shader.Prog, GL^.Shader.Loc[GLNVG_LOC_FRAG], 0 {GLNVG_FRAG_BINDING});
-  glGenBuffers(1, @GL^.FragBuf);
+  glUniformBlockBinding(GL.Shader.Prog, GL.Shader.Loc[GLNVG_LOC_FRAG], 0 {GLNVG_FRAG_BINDING});
+  glGenBuffers(1, @GL.FragBuf);
   glGetIntegerv(GL_UNIFORM_BUFFER_OFFSET_ALIGNMENT, @Align);
   {$ENDIF}
-  GL^.FragSize := SizeOf(TGLNVGFragUniforms) + Align - SizeOf(TGLNVGFragUniforms) mod Align;
+  GL.FragSize := SizeOf(TGLNVGFragUniforms) + Align - SizeOf(TGLNVGFragUniforms) mod Align;
 
-  GL^.DummyTex := glnvg__RenderCreateTexture(GL, NVG_TEXTURE_ALPHA, 1, 1, 0, nil);
+  GL.DummyTex := glnvg__RenderCreateTexture(GL, NVG_TEXTURE_ALPHA, 1, 1, 0, nil);
 
   glnvg__CheckError(GL, 'create done');
 
-  glFinish;
+  OpenGL.glFinish;
 
   Result := 1;
 end;
 
 function glnvg__RenderCreateTexture(Uptr: Pointer; TexType: TNVGTexture; W, H, ImageFlags: int32; Data: pbyte): int32;
 var
-  GL: PGLNVGContext;
+  GL: TGLContext;
   Tex: PGLNVGTexture;
 begin
-  GL := PGLNVGContext(Uptr);
+  GL := TGLContext(Uptr);
   Tex := glnvg__AllocTexture(GL);
   if Tex = nil then
     Exit(0);
@@ -568,18 +558,18 @@ begin
   end;
   {$ENDIF}
 
-  glGenTextures(1, @Tex^.Tex);
+  OpenGL.glGenTextures(1, @Tex^.Tex);
   Tex^.Width := W;
   Tex^.Height := H;
   Tex^.TexType := TexType;
   Tex^.Flags := ImageFlags;
   glnvg__BindTexture(GL, Tex^.Tex);
 
-  glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+  OpenGL.glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
   {$IFNDEF NANOVG_GLES2}
-  glPixelStorei(GL_UNPACK_ROW_LENGTH, Tex^.Width);
-  glPixelStorei(GL_UNPACK_SKIP_PIXELS, 0);
-  glPixelStorei(GL_UNPACK_SKIP_ROWS, 0);
+  OpenGL.glPixelStorei(GL_UNPACK_ROW_LENGTH, Tex^.Width);
+  OpenGL.glPixelStorei(GL_UNPACK_SKIP_PIXELS, 0);
+  OpenGL.glPixelStorei(GL_UNPACK_SKIP_ROWS, 0);
   {$ENDIF}
 
   {$IFDEF NANOVG_GL2}
@@ -588,54 +578,54 @@ begin
   {$ENDIF}
 
   if TexType = NVG_TEXTURE_RGBA then
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, W, H, 0, GL_RGBA, GL_UNSIGNED_BYTE, Data)
+    OpenGL.glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, W, H, 0, GL_RGBA, GL_UNSIGNED_BYTE, Data)
   else
   {$IF defined(NANOVG_GLES2) or defined(NANOVG_GL2)}
     glTexImage2D(GL_TEXTURE_2D, 0, GL_LUMINANCE, W, H, 0, GL_LUMINANCE, GL_UNSIGNED_BYTE, Data);
   {$ELSE}
-  glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, W, H, 0, GL_RED, GL_UNSIGNED_BYTE, Data);
+  OpenGL.glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, W, H, 0, GL_RED, GL_UNSIGNED_BYTE, Data);
   {$ENDIF}
 
   if (ImageFlags and int32(NVG_IMAGE_GENERATE_MIPMAPS)) <> 0 then
   begin
     if (ImageFlags and int32(NVG_IMAGE_NEAREST)) <> 0 then
-      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_NEAREST)
+      OpenGL.glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_NEAREST)
     else
-      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+      OpenGL.glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
   end
   else
   begin
     if (ImageFlags and int32(NVG_IMAGE_NEAREST)) <> 0 then
-      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST)
+      OpenGL.glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST)
     else
-      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+      OpenGL.glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
   end;
 
   if (ImageFlags and int32(NVG_IMAGE_NEAREST)) <> 0 then
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST)
+    OpenGL.glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST)
   else
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    OpenGL.glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
   if (ImageFlags and int32(NVG_IMAGE_REPEATX)) <> 0 then
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT)
+    OpenGL.glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT)
   else
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    OpenGL.glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 
   if (ImageFlags and int32(NVG_IMAGE_REPEATY)) <> 0 then
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT)
+    OpenGL.glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT)
   else
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    OpenGL.glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
-  glPixelStorei(GL_UNCHECK_ALIGNMENT, 4);
+  OpenGL.glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
   {$IFNDEF NANOVG_GLES2}
-  glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
-  glPixelStorei(GL_UNPACK_SKIP_PIXELS, 0);
-  glPixelStorei(GL_UNPACK_SKIP_ROWS, 0);
+  OpenGL.glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
+  OpenGL.glPixelStorei(GL_UNPACK_SKIP_PIXELS, 0);
+  OpenGL.glPixelStorei(GL_UNPACK_SKIP_ROWS, 0);
   {$ENDIF}
 
   {$IFNDEF NANOVG_GL2}
   if (ImageFlags and int32(NVG_IMAGE_GENERATE_MIPMAPS)) <> 0 then
-    glGenerateMipmap(GL_TEXTURE_2D);
+    OpenGL.glGenerateMipmap(GL_TEXTURE_2D);
   {$ENDIF}
 
   glnvg__CheckError(GL, 'create tex');
@@ -646,27 +636,27 @@ end;
 
 function glnvg__RenderDeleteTexture(Uptr: Pointer; Image: int32): int32;
 begin
-  Result := Ord(glnvg__DeleteTexture(PGLNVGContext(Uptr), Image));
+  Result := Ord(glnvg__DeleteTexture(TGLContext(Uptr), Image));
 end;
 
 function glnvg__RenderUpdateTexture(Uptr: Pointer; Image, X, Y, W, H: int32; Data: pbyte): int32;
 var
-  GL: PGLNVGContext;
+  GL: TGLContext;
   Tex: PGLNVGTexture;
 begin
-  GL := PGLNVGContext(Uptr);
+  GL := TGLContext(Uptr);
   Tex := glnvg__FindTexture(GL, Image);
   if Tex = nil then
     Exit(0);
 
   glnvg__BindTexture(GL, Tex^.Tex);
 
-  glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+  OpenGL.glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 
   {$IFNDEF NANOVG_GLES2}
-  glPixelStorei(GL_UNPACK_ROW_LENGTH, Tex^.Width);
-  glPixelStorei(GL_UNPACK_SKIP_PIXELS, X);
-  glPixelStorei(GL_UNPACK_SKIP_ROWS, Y);
+  OpenGL.glPixelStorei(GL_UNPACK_ROW_LENGTH, Tex^.Width);
+  OpenGL.glPixelStorei(GL_UNPACK_SKIP_PIXELS, X);
+  OpenGL.glPixelStorei(GL_UNPACK_SKIP_ROWS, Y);
   {$ELSE}
   if Tex^.TexType = NVG_TEXTURE_RGBA then
     Inc(Data, Y * Tex^.Width * 4)
@@ -678,22 +668,22 @@ begin
 
   if Tex^.TexType = int32(NVG_TEXTURE_RGBA) then
   begin
-    glTexSubImage2D(GL_TEXTURE_2D, 0, X, Y, W, H, GL_RGBA, GL_UNSIGNED_BYTE, Data);
+    OpenGL.glTexSubImage2D(GL_TEXTURE_2D, 0, X, Y, W, H, GL_RGBA, GL_UNSIGNED_BYTE, Data);
   end
   else
   begin
     {$IF defined(NANOVG_GLES2) or defined(NANOVG_GL2)}
     glTexSubImage2D(GL_TEXTURE_2D, 0, X, Y, W, H, GL_LUMINANCE, GL_UNSIGNED_BYTE, Data);
     {$ELSE}
-    glTexSubImage2D(GL_TEXTURE_2D, 0, X, Y, W, H, GL_RED, GL_UNSIGNED_BYTE, Data);
+    OpenGL.glTexSubImage2D(GL_TEXTURE_2D, 0, X, Y, W, H, GL_RED, GL_UNSIGNED_BYTE, Data);
     {$ENDIF}
   end;
 
-  glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
+  OpenGL.glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
   {$IFNDEF NANOVG_GLES2}
-  glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
-  glPixelStorei(GL_UNPACK_SKIP_PIXELS, 0);
-  glPixelStorei(GL_UNPACK_SKIP_ROWS, 0);
+  OpenGL.glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
+  OpenGL.glPixelStorei(GL_UNPACK_SKIP_PIXELS, 0);
+  OpenGL.glPixelStorei(GL_UNPACK_SKIP_ROWS, 0);
   {$ENDIF}
 
   glnvg__BindTexture(GL, 0);
@@ -703,10 +693,10 @@ end;
 
 function glnvg__RenderGetTextureSize(Uptr: Pointer; Image: int32; var W, H: int32): int32;
 var
-  GL: PGLNVGContext;
+  GL: TGLContext;
   Tex: PGLNVGTexture;
 begin
-  GL := PGLNVGContext(Uptr);
+  GL := TGLContext(Uptr);
   Tex := glnvg__FindTexture(GL, Image);
   if Tex = nil then
     Exit(0);
@@ -739,7 +729,7 @@ begin
   Result.B := C.B * C.A;
 end;
 
-function glnvg__ConvertPaint(GL: PGLNVGContext; Frag: PGLNVGFragUniforms; Paint: PNVGPaint; Scissor: PNVGScissor; Width, Fringe, StrokeThr: single): boolean;
+function glnvg__ConvertPaint(GL: TGLContext; Frag: PGLNVGFragUniforms; Paint: PNVGPaint; Scissor: PNVGScissor; Width, Fringe, StrokeThr: single): boolean;
 var
   Tex: PGLNVGTexture;
   InvXform, M1, M2: array[0..5] of single;
@@ -815,89 +805,89 @@ begin
   Result := True;
 end;
 
-function nvg__FragUniformPtr(GL: PGLNVGContext; I: int32): PGLNVGFragUniforms;
+function nvg__FragUniformPtr(GL: TGLContext; I: int32): PGLNVGFragUniforms;
 begin
-  Result := PGLNVGFragUniforms(pbyte(GL^.Uniforms) + I);
+  Result := PGLNVGFragUniforms(pbyte(GL.Uniforms) + I);
 end;
 
-procedure glnvg__SetUniforms(GL: PGLNVGContext; UniformOffset, Image: int32);
+procedure glnvg__SetUniforms(GL: TGLContext; UniformOffset, Image: int32);
 var
   Tex: PGLNVGTexture;
   Frag: PGLNVGFragUniforms;
 begin
   {$IFDEF NANOVG_GL_USE_UNIFORMBUFFER}
-  glBindBufferRange(GL_UNIFORM_BUFFER, 0 {GLNVG_FRAG_BINDING}, GL^.FragBuf, UniformOffset, SizeOf(TGLNVGFragUniforms));
+  glBindBufferRange(GL_UNIFORM_BUFFER, 0 {GLNVG_FRAG_BINDING}, GL.FragBuf, UniformOffset, SizeOf(TGLNVGFragUniforms));
   {$ELSE}
   Frag := nvg__FragUniformPtr(GL, UniformOffset);
-  glUniform4fv(GL^.Shader.Loc[GLNVG_LOC_FRAG], 11 {NANOVG_GL_UNIFORMARRAY_SIZE}, @Frag^.ScissorMat[0]);
+  OpenGL.glUniform4fv(GL.Shader.Loc[GLNVG_LOC_FRAG], 11 {NANOVG_GL_UNIFORMARRAY_SIZE}, @Frag^.ScissorMat[0]);
   {$ENDIF}
 
   if Image <> 0 then
     Tex := glnvg__FindTexture(GL, Image);
   if Tex = nil then
-    Tex := glnvg__FindTexture(GL, GL^.DummyTex);
+    Tex := glnvg__FindTexture(GL, GL.DummyTex);
   glnvg__BindTexture(GL, IfThen(Tex <> nil, Tex^.Tex, 0));
   glnvg__CheckError(GL, 'tex paint tex');
 end;
 
 procedure glnvg__RenderViewport(Uptr: Pointer; Width, Height, DevicePixelRatio: single);
 var
-  GL: PGLNVGContext;
+  GL: TGLContext;
 begin
-  GL := PGLNVGContext(Uptr);
-  GL^.View[0] := Width;
-  GL^.View[1] := Height;
+  GL := TGLContext(Uptr);
+  GL.View[0] := Width;
+  GL.View[1] := Height;
 end;
 
-procedure glnvg__Fill(GL: PGLNVGContext; Call: PGLNVGCall);
+procedure glnvg__Fill(GL: TGLContext; Call: PGLNVGCall);
 var
   Paths: PGLNVGPath;
   I, NPaths: int32;
 begin
-  Paths := @GL^.Paths[Call^.PathOffset];
+  Paths := @GL.Paths[Call^.PathOffset];
   NPaths := Call^.PathCount;
 
-  glEnable(GL_STENCIL_TEST);
+  OpenGL.glEnable(GL_STENCIL_TEST);
   glnvg__StencilMask(GL, $FF);
   glnvg__StencilFunc(GL, GL_ALWAYS, 0, $FF);
-  glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
+  OpenGL.glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
 
   glnvg__SetUniforms(GL, Call^.UniformOffset, 0);
   glnvg__CheckError(GL, 'fill simple');
 
-  glStencilOpSeparate(GL_FRONT, GL_KEEP, GL_KEEP, GL_INCR_WRAP);
-  glStencilOpSeparate(GL_BACK, GL_KEEP, GL_KEEP, GL_DECR_WRAP);
-  glDisable(GL_CULL_FACE);
+  OpenGL.glStencilOpSeparate(GL_FRONT, GL_KEEP, GL_KEEP, GL_INCR_WRAP);
+  OpenGL.glStencilOpSeparate(GL_BACK, GL_KEEP, GL_KEEP, GL_DECR_WRAP);
+  OpenGL.glDisable(GL_CULL_FACE);
   for I := 0 to NPaths - 1 do
-    glDrawArrays(GL_TRIANGLE_FAN, Paths[I].FillOffset, Paths[I].FillCount);
-  glEnable(GL_CULL_FACE);
+    OpenGL.glDrawArrays(GL_TRIANGLE_FAN, Paths[I].FillOffset, Paths[I].FillCount);
+  OpenGL.glEnable(GL_CULL_FACE);
 
-  glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+  OpenGL.glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
 
-  glnvg__SetUniforms(GL, Call^.UniformOffset + GL^.FragSize, Call^.Image);
+  glnvg__SetUniforms(GL, Call^.UniformOffset + GL.FragSize, Call^.Image);
   glnvg__CheckError(GL, 'fill fill');
 
-  if (GL^.Flags and NVG_ANTIALIAS) <> 0 then
+  if (GL.Flags and NVG_ANTIALIAS) <> 0 then
   begin
     glnvg__StencilFunc(GL, GL_EQUAL, $00, $FF);
-    glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
+    OpenGL.glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
     for I := 0 to NPaths - 1 do
-      glDrawArrays(GL_TRIANGLE_STRIP, Paths[I].StrokeOffset, Paths[I].StrokeCount);
+      OpenGL.glDrawArrays(GL_TRIANGLE_STRIP, Paths[I].StrokeOffset, Paths[I].StrokeCount);
   end;
 
   glnvg__StencilFunc(GL, GL_NOTEQUAL, $0, $FF);
-  glStencilOp(GL_ZERO, GL_ZERO, GL_ZERO);
-  glDrawArrays(GL_TRIANGLE_STRIP, Call^.TriangleOffset, Call^.TriangleCount);
+  OpenGL.glStencilOp(GL_ZERO, GL_ZERO, GL_ZERO);
+  OpenGL.glDrawArrays(GL_TRIANGLE_STRIP, Call^.TriangleOffset, Call^.TriangleCount);
 
-  glDisable(GL_STENCIL_TEST);
+  OpenGL.glDisable(GL_STENCIL_TEST);
 end;
 
-procedure glnvg__ConvexFill(GL: PGLNVGContext; Call: PGLNVGCall);
+procedure glnvg__ConvexFill(GL: TGLContext; Call: PGLNVGCall);
 var
   Paths: PGLNVGPath;
   I, NPaths: int32;
 begin
-  Paths := @GL^.Paths[Call^.PathOffset];
+  Paths := @GL.Paths[Call^.PathOffset];
   NPaths := Call^.PathCount;
 
   glnvg__SetUniforms(GL, Call^.UniformOffset, Call^.Image);
@@ -905,73 +895,73 @@ begin
 
   for I := 0 to NPaths - 1 do
   begin
-    glDrawArrays(GL_TRIANGLE_FAN, Paths[I].FillOffset, Paths[I].FillCount);
+    OpenGL.glDrawArrays(GL_TRIANGLE_FAN, Paths[I].FillOffset, Paths[I].FillCount);
     if Paths[I].StrokeCount > 0 then
-      glDrawArrays(GL_TRIANGLE_STRIP, Paths[I].StrokeOffset, Paths[I].StrokeCount);
+      OpenGL.glDrawArrays(GL_TRIANGLE_STRIP, Paths[I].StrokeOffset, Paths[I].StrokeCount);
   end;
 end;
 
-procedure glnvg__Stroke(GL: PGLNVGContext; Call: PGLNVGCall);
+procedure glnvg__Stroke(GL: TGLContext; Call: PGLNVGCall);
 var
   Paths: PGLNVGPath;
   I, NPaths: int32;
 begin
-  Paths := @GL^.Paths[Call^.PathOffset];
+  Paths := @GL.Paths[Call^.PathOffset];
   NPaths := Call^.PathCount;
 
-  if (GL^.Flags and NVG_STENCIL_STROKES) <> 0 then
+  if (GL.Flags and NVG_STENCIL_STROKES) <> 0 then
   begin
-    glEnable(GL_STENCIL_TEST);
+    OpenGL.glEnable(GL_STENCIL_TEST);
     glnvg__StencilMask(GL, $FF);
 
     glnvg__StencilFunc(GL, GL_EQUAL, $0, $FF);
-    glStencilOp(GL_KEEP, GL_KEEP, GL_INCR);
-    glnvg__SetUniforms(GL, Call^.UniformOffset + GL^.FragSize, Call^.Image);
+    OpenGL.glStencilOp(GL_KEEP, GL_KEEP, GL_INCR);
+    glnvg__SetUniforms(GL, Call^.UniformOffset + GL.FragSize, Call^.Image);
     glnvg__CheckError(GL, 'stroke fill 0');
     for I := 0 to NPaths - 1 do
-      glDrawArrays(GL_TRIANGLE_STRIP, Paths[I].StrokeOffset, Paths[I].StrokeCount);
+      OpenGL.glDrawArrays(GL_TRIANGLE_STRIP, Paths[I].StrokeOffset, Paths[I].StrokeCount);
 
     glnvg__SetUniforms(GL, Call^.UniformOffset, Call^.Image);
     glnvg__StencilFunc(GL, GL_EQUAL, $00, $FF);
-    glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
+    OpenGL.glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
     for I := 0 to NPaths - 1 do
-      glDrawArrays(GL_TRIANGLE_STRIP, Paths[I].StrokeOffset, Paths[I].StrokeCount);
+      OpenGL.glDrawArrays(GL_TRIANGLE_STRIP, Paths[I].StrokeOffset, Paths[I].StrokeCount);
 
-    glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
+    OpenGL.glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
     glnvg__StencilFunc(GL, GL_ALWAYS, $0, $FF);
-    glStencilOp(GL_ZERO, GL_ZERO, GL_ZERO);
+    OpenGL.glStencilOp(GL_ZERO, GL_ZERO, GL_ZERO);
     glnvg__CheckError(GL, 'stroke fill 1');
     for I := 0 to NPaths - 1 do
-      glDrawArrays(GL_TRIANGLE_STRIP, Paths[I].StrokeOffset, Paths[I].StrokeCount);
-    glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+      OpenGL.glDrawArrays(GL_TRIANGLE_STRIP, Paths[I].StrokeOffset, Paths[I].StrokeCount);
+    OpenGL.glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
 
-    glDisable(GL_STENCIL_TEST);
+    OpenGL.glDisable(GL_STENCIL_TEST);
   end
   else
   begin
     glnvg__SetUniforms(GL, Call^.UniformOffset, Call^.Image);
     glnvg__CheckError(GL, 'stroke fill');
     for I := 0 to NPaths - 1 do
-      glDrawArrays(GL_TRIANGLE_STRIP, Paths[I].StrokeOffset, Paths[I].StrokeCount);
+      OpenGL.glDrawArrays(GL_TRIANGLE_STRIP, Paths[I].StrokeOffset, Paths[I].StrokeCount);
   end;
 end;
 
-procedure glnvg__Triangles(GL: PGLNVGContext; Call: PGLNVGCall);
+procedure glnvg__Triangles(GL: TGLContext; Call: PGLNVGCall);
 begin
   glnvg__SetUniforms(GL, Call^.UniformOffset, Call^.Image);
   glnvg__CheckError(GL, 'triangles fill');
-  glDrawArrays(GL_TRIANGLES, Call^.TriangleOffset, Call^.TriangleCount);
+  OpenGL.glDrawArrays(GL_TRIANGLES, Call^.TriangleOffset, Call^.TriangleCount);
 end;
 
 procedure glnvg__RenderCancel(Uptr: Pointer);
 var
-  GL: PGLNVGContext;
+  GL: TGLContext;
 begin
-  GL := PGLNVGContext(Uptr);
-  GL^.NVerts := 0;
-  GL^.NPaths := 0;
-  GL^.NCalls := 0;
-  GL^.NUniforms := 0;
+  GL := TGLContext(Uptr);
+  GL.NVerts := 0;
+  GL.NPaths := 0;
+  GL.NCalls := 0;
+  GL.NUniforms := 0;
 end;
 
 function glnvg__ConvertBlendFuncFactor(Factor: int32): GLenum;
@@ -1010,64 +1000,64 @@ end;
 
 procedure glnvg__RenderFlush(Uptr: Pointer);
 var
-  GL: PGLNVGContext;
+  GL: TGLContext;
   I: int32;
   Call: PGLNVGCall;
 begin
-  GL := PGLNVGContext(Uptr);
-  if GL^.NCalls > 0 then
+  GL := TGLContext(Uptr);
+  if GL.NCalls > 0 then
   begin
-    glUseProgram(GL^.Shader.Prog);
+    OpenGL.glUseProgram(GL.Shader.Prog);
 
-    glEnable(GL_CULL_FACE);
-    glCullFace(GL_BACK);
-    glFrontFace(GL_CCW);
-    glEnable(GL_BLEND);
-    glDisable(GL_DEPTH_TEST);
-    glDisable(GL_SCISSOR_TEST);
-    glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
-    glStencilMask($FFFFFFFF);
-    glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
-    glStencilFunc(GL_ALWAYS, 0, $FFFFFFFF);
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, 0);
+    OpenGL.glEnable(GL_CULL_FACE);
+    OpenGL.glCullFace(GL_BACK);
+    OpenGL.glFrontFace(GL_CCW);
+    OpenGL.glEnable(GL_BLEND);
+    OpenGL.glDisable(GL_DEPTH_TEST);
+    OpenGL.glDisable(GL_SCISSOR_TEST);
+    OpenGL.glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+    OpenGL.glStencilMask($FFFFFFFF);
+    OpenGL.glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
+    OpenGL.glStencilFunc(GL_ALWAYS, 0, $FFFFFFFF);
+    OpenGL.glActiveTexture(GL_TEXTURE0);
+    OpenGL.glBindTexture(GL_TEXTURE_2D, 0);
     {$IFDEF NANOVG_GL_USE_STATE_FILTER}
-    GL^.BoundTexture := 0;
-    GL^.StencilMask := $FFFFFFFF;
-    GL^.StencilFunc := GL_ALWAYS;
-    GL^.StencilFuncRef := 0;
-    GL^.StencilFuncMask := $FFFFFFFF;
-    GL^.BlendFunc.SrcRGB := GL_INVALID_ENUM;
-    GL^.BlendFunc.SrcAlpha := GL_INVALID_ENUM;
-    GL^.BlendFunc.DstRGB := GL_INVALID_ENUM;
-    GL^.BlendFunc.DstAlpha := GL_INVALID_ENUM;
+    GL.BoundTexture := 0;
+    GL.StencilMask := $FFFFFFFF;
+    GL.StencilFunc := GL_ALWAYS;
+    GL.StencilFuncRef := 0;
+    GL.StencilFuncMask := $FFFFFFFF;
+    GL.BlendFunc.SrcRGB := GL_INVALID_ENUM;
+    GL.BlendFunc.SrcAlpha := GL_INVALID_ENUM;
+    GL.BlendFunc.DstRGB := GL_INVALID_ENUM;
+    GL.BlendFunc.DstAlpha := GL_INVALID_ENUM;
     {$ENDIF}
 
     {$IFDEF NANOVG_GL_USE_UNIFORMBUFFER}
-    glBindBuffer(GL_UNIFORM_BUFFER, GL^.FragBuf);
-    glBufferData(GL_UNIFORM_BUFFER, GL^.NUniforms * GL^.FragSize, GL^.Uniforms, GL_STREAM_DRAW);
+    glBindBuffer(GL_UNIFORM_BUFFER, GL.FragBuf);
+    glBufferData(GL_UNIFORM_BUFFER, GL.NUniforms * GL.FragSize, GL.Uniforms, GL_STREAM_DRAW);
     {$ENDIF}
 
     {$IFDEF NANOVG_GL3}
-    glBindVertexArray(GL^.VertArr);
+    glBindVertexArray(GL.VertArr);
     {$ENDIF}
-    glBindBuffer(GL_ARRAY_BUFFER, GL^.VertBuf);
-    glBufferData(GL_ARRAY_BUFFER, GL^.NVerts * SizeOf(TNVGVertex), GL^.Verts, GL_STREAM_DRAW);
-    glEnableVertexAttribArray(0);
-    glEnableVertexAttribArray(1);
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, SizeOf(TNVGVertex), Pointer(0));
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, SizeOf(TNVGVertex), Pointer(2 * SizeOf(single)));
+    OpenGL.glBindBuffer(GL_ARRAY_BUFFER, GL.VertBuf);
+    OpenGL.glBufferData(GL_ARRAY_BUFFER, GL.NVerts * SizeOf(TNVGVertex), GL.Verts, GL_STREAM_DRAW);
+    OpenGL.glEnableVertexAttribArray(0);
+    OpenGL.glEnableVertexAttribArray(1);
+    OpenGL.glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, SizeOf(TNVGVertex), Pointer(0));
+    OpenGL.glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, SizeOf(TNVGVertex), Pointer(2 * SizeOf(single)));
 
-    glUniform1i(GL^.Shader.Loc[GLNVG_LOC_TEX], 0);
-    glUniform2fv(GL^.Shader.Loc[GLNVG_LOC_VIEWSIZE], 1, @GL^.View[0]);
+    OpenGL.glUniform1i(GL.Shader.Loc[GLNVG_LOC_TEX], 0);
+    OpenGL.glUniform2fv(GL.Shader.Loc[GLNVG_LOC_VIEWSIZE], 1, @GL.View[0]);
 
     {$IFDEF NANOVG_GL_USE_UNIFORMBUFFER}
-    glBindBuffer(GL_UNIFORM_BUFFER, GL^.FragBuf);
+    glBindBuffer(GL_UNIFORM_BUFFER, GL.FragBuf);
     {$ENDIF}
 
-    for I := 0 to GL^.NCalls - 1 do
+    for I := 0 to GL.NCalls - 1 do
     begin
-      Call := @GL^.Calls[I];
+      Call := @GL.Calls[I];
       glnvg__BlendFuncSeparate(GL, @Call^.BlendFunc);
       case Call^.CallType of
         GLNVG_FILL: glnvg__Fill(GL, Call);
@@ -1077,21 +1067,21 @@ begin
       end;
     end;
 
-    glDisableVertexAttribArray(0);
-    glDisableVertexAttribArray(1);
+    OpenGL.glDisableVertexAttribArray(0);
+    OpenGL.glDisableVertexAttribArray(1);
     {$IFDEF NANOVG_GL3}
     glBindVertexArray(0);
     {$ENDIF}
-    glDisable(GL_CULL_FACE);
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-    glUseProgram(0);
+    OpenGL.glDisable(GL_CULL_FACE);
+    OpenGL.glBindBuffer(GL_ARRAY_BUFFER, 0);
+    OpenGL.glUseProgram(0);
     glnvg__BindTexture(GL, 0);
   end;
 
-  GL^.NVerts := 0;
-  GL^.NPaths := 0;
-  GL^.NCalls := 0;
-  GL^.NUniforms := 0;
+  GL.NVerts := 0;
+  GL.NPaths := 0;
+  GL.NCalls := 0;
+  GL.NUniforms := 0;
 end;
 
 function glnvg__MaxVertCount(Paths: PNVGPath; NPaths: int32): int32;
@@ -1106,70 +1096,70 @@ begin
   end;
 end;
 
-function glnvg__AllocCall(GL: PGLNVGContext): PGLNVGCall;
+function glnvg__AllocCall(GL: TGLContext): PGLNVGCall;
 var
   CCalls: int32;
 begin
-  if GL^.NCalls + 1 > GL^.CCalls then
+  if GL.NCalls + 1 > GL.CCalls then
   begin
-    CCalls := glnvg__MaxI(GL^.NCalls + 1, 128) + GL^.CCalls div 2;
-    ReallocMem(GL^.Calls, SizeOf(TGLNVGCall) * CCalls);
-    if GL^.Calls = nil then
+    CCalls := glnvg__MaxI(GL.NCalls + 1, 128) + GL.CCalls div 2;
+    ReallocMem(GL.Calls, SizeOf(TGLNVGCall) * CCalls);
+    if GL.Calls = nil then
       Exit(nil);
-    GL^.CCalls := CCalls;
+    GL.CCalls := CCalls;
   end;
-  Result := @GL^.Calls[GL^.NCalls];
-  Inc(GL^.NCalls);
+  Result := @GL.Calls[GL.NCalls];
+  Inc(GL.NCalls);
   FillChar(Result^, SizeOf(TGLNVGCall), 0);
 end;
 
-function glnvg__AllocPaths(GL: PGLNVGContext; N: int32): int32;
+function glnvg__AllocPaths(GL: TGLContext; N: int32): int32;
 var
   CPaths: int32;
 begin
-  if GL^.NPaths + N > GL^.CPaths then
+  if GL.NPaths + N > GL.CPaths then
   begin
-    CPaths := glnvg__MaxI(GL^.NPaths + N, 128) + GL^.CPaths div 2;
-    ReallocMem(GL^.Paths, SizeOf(TGLNVGPath) * CPaths);
-    if GL^.Paths = nil then
+    CPaths := glnvg__MaxI(GL.NPaths + N, 128) + GL.CPaths div 2;
+    ReallocMem(GL.Paths, SizeOf(TGLNVGPath) * CPaths);
+    if GL.Paths = nil then
       Exit(-1);
-    GL^.CPaths := CPaths;
+    GL.CPaths := CPaths;
   end;
-  Result := GL^.NPaths;
-  Inc(GL^.NPaths, N);
+  Result := GL.NPaths;
+  Inc(GL.NPaths, N);
 end;
 
-function glnvg__AllocVerts(GL: PGLNVGContext; N: int32): int32;
+function glnvg__AllocVerts(GL: TGLContext; N: int32): int32;
 var
   CVerts: int32;
 begin
-  if GL^.NVerts + N > GL^.CVerts then
+  if GL.NVerts + N > GL.CVerts then
   begin
-    CVerts := glnvg__MaxI(GL^.NVerts + N, 4096) + GL^.CVerts div 2;
-    ReallocMem(GL^.Verts, SizeOf(TNVGVertex) * CVerts);
-    if GL^.Verts = nil then
+    CVerts := glnvg__MaxI(GL.NVerts + N, 4096) + GL.CVerts div 2;
+    ReallocMem(GL.Verts, SizeOf(TNVGVertex) * CVerts);
+    if GL.Verts = nil then
       Exit(-1);
-    GL^.CVerts := CVerts;
+    GL.CVerts := CVerts;
   end;
-  Result := GL^.NVerts;
-  Inc(GL^.NVerts, N);
+  Result := GL.NVerts;
+  Inc(GL.NVerts, N);
 end;
 
-function glnvg__AllocFragUniforms(GL: PGLNVGContext; N: int32): int32;
+function glnvg__AllocFragUniforms(GL: TGLContext; N: int32): int32;
 var
   CUniforms, StructSize: int32;
 begin
-  StructSize := GL^.FragSize;
-  if GL^.NUniforms + N > GL^.CUniforms then
+  StructSize := GL.FragSize;
+  if GL.NUniforms + N > GL.CUniforms then
   begin
-    CUniforms := glnvg__MaxI(GL^.NUniforms + N, 128) + GL^.CUniforms div 2;
-    ReallocMem(GL^.Uniforms, StructSize * CUniforms);
-    if GL^.Uniforms = nil then
+    CUniforms := glnvg__MaxI(GL.NUniforms + N, 128) + GL.CUniforms div 2;
+    ReallocMem(GL.Uniforms, StructSize * CUniforms);
+    if GL.Uniforms = nil then
       Exit(-1);
-    GL^.CUniforms := CUniforms;
+    GL.CUniforms := CUniforms;
   end;
-  Result := GL^.NUniforms * StructSize;
-  Inc(GL^.NUniforms, N);
+  Result := GL.NUniforms * StructSize;
+  Inc(GL.NUniforms, N);
 end;
 
 procedure glnvg__VSet(Vtx: PNVGVertex; X, Y, U, V: single);
@@ -1182,14 +1172,14 @@ end;
 
 procedure glnvg__RenderFill(Uptr: Pointer; Paint: PNVGPaint; CompositeOperation: TNVGCompositeOperationState; Scissor: PNVGScissor; Fringe: single; Bounds: PSingle; Paths: PNVGPath; NPaths: int32);
 var
-  GL: PGLNVGContext;
+  GL: TGLContext;
   Call: PGLNVGCall;
   Quad: PNVGVertex;
   Frag: PGLNVGFragUniforms;
   I, MaxVerts, Offset: int32;
 begin
   try
-    GL := PGLNVGContext(Uptr);
+    GL := TGLContext(Uptr);
     Call := glnvg__AllocCall(GL);
     if Call = nil then
       Exit;
@@ -1216,20 +1206,20 @@ begin
 
     for I := 0 to NPaths - 1 do
     begin
-      GL^.Paths[Call^.PathOffset + I].FillOffset := Offset;
-      GL^.Paths[Call^.PathOffset + I].FillCount := Paths[I].nfill;
-      Move(Paths[I].nfill, GL^.Verts[Offset], SizeOf(TNVGVertex) * Paths[I].nfill);
+      GL.Paths[Call^.PathOffset + I].FillOffset := Offset;
+      GL.Paths[Call^.PathOffset + I].FillCount := Paths[I].nfill;
+      Move(Paths[I].nfill, GL.Verts[Offset], SizeOf(TNVGVertex) * Paths[I].nfill);
       Inc(Offset, Paths[I].nfill);
-      GL^.Paths[Call^.PathOffset + I].StrokeOffset := Offset;
-      GL^.Paths[Call^.PathOffset + I].StrokeCount := Paths[I].NStroke;
-      Move(Paths[I].Stroke^, GL^.Verts[Offset], SizeOf(TNVGVertex) * Paths[I].NStroke);
+      GL.Paths[Call^.PathOffset + I].StrokeOffset := Offset;
+      GL.Paths[Call^.PathOffset + I].StrokeCount := Paths[I].NStroke;
+      Move(Paths[I].Stroke^, GL.Verts[Offset], SizeOf(TNVGVertex) * Paths[I].NStroke);
       Inc(Offset, Paths[I].NStroke);
     end;
 
     if Call^.CallType = GLNVG_FILL then
     begin
       Call^.TriangleOffset := Offset;
-      Quad := @GL^.Verts[Call^.TriangleOffset];
+      Quad := @GL.Verts[Call^.TriangleOffset];
       glnvg__VSet(@Quad[0], Bounds[2], Bounds[3], 0.5, 1.0);
       glnvg__VSet(@Quad[1], Bounds[2], Bounds[1], 0.5, 1.0);
       glnvg__VSet(@Quad[2], Bounds[0], Bounds[3], 0.5, 1.0);
@@ -1244,7 +1234,7 @@ begin
       Frag^.StrokeThr := -1.0;
       Frag^.ShaderType := NSVG_SHADER_SIMPLE;
 
-      glnvg__ConvertPaint(GL, nvg__FragUniformPtr(GL, Call^.UniformOffset + GL^.FragSize), Paint, Scissor, Fringe, Fringe, -1.0);
+      glnvg__ConvertPaint(GL, nvg__FragUniformPtr(GL, Call^.UniformOffset + GL.FragSize), Paint, Scissor, Fringe, Fringe, -1.0);
     end
     else
     begin
@@ -1257,19 +1247,19 @@ begin
     Exit;
 
   except
-    if GL^.NCalls > 0 then
-      Dec(GL^.NCalls);
+    if GL.NCalls > 0 then
+      Dec(GL.NCalls);
   end;
 end;
 
 procedure glnvg__RenderStroke(Uptr: Pointer; Paint: PNVGPaint; CompositeOperation: TNVGCompositeOperationState; Scissor: PNVGScissor; Fringe, StrokeWidth: single; Paths: PNVGPath; NPaths: int32);
 var
-  GL: PGLNVGContext;
+  GL: TGLContext;
   Call: PGLNVGCall;
   I, MaxVerts, Offset: int32;
 begin
   try
-    GL := PGLNVGContext(Uptr);
+    GL := TGLContext(Uptr);
     Call := glnvg__AllocCall(GL);
     if Call = nil then
       Exit;
@@ -1287,20 +1277,20 @@ begin
 
     for I := 0 to NPaths - 1 do
     begin
-      GL^.Paths[Call^.PathOffset + I].StrokeOffset := Offset;
-      GL^.Paths[Call^.PathOffset + I].StrokeCount := Paths[I].NStroke;
-      Move(Paths[I].Stroke^, GL^.Verts[Offset], SizeOf(TNVGVertex) * Paths[I].NStroke);
+      GL.Paths[Call^.PathOffset + I].StrokeOffset := Offset;
+      GL.Paths[Call^.PathOffset + I].StrokeCount := Paths[I].NStroke;
+      Move(Paths[I].Stroke^, GL.Verts[Offset], SizeOf(TNVGVertex) * Paths[I].NStroke);
       Inc(Offset, Paths[I].NStroke);
     end;
 
-    if (GL^.Flags and NVG_STENCIL_STROKES) <> 0 then
+    if (GL.Flags and NVG_STENCIL_STROKES) <> 0 then
     begin
       Call^.UniformOffset := glnvg__AllocFragUniforms(GL, 2);
       if Call^.UniformOffset = -1 then
         raise ENullPointerException.Create();
 
       glnvg__ConvertPaint(GL, nvg__FragUniformPtr(GL, Call^.UniformOffset), Paint, Scissor, StrokeWidth, Fringe, -1.0);
-      glnvg__ConvertPaint(GL, nvg__FragUniformPtr(GL, Call^.UniformOffset + GL^.FragSize), Paint, Scissor, StrokeWidth, Fringe, 1.0 - 0.5 / 255.0);
+      glnvg__ConvertPaint(GL, nvg__FragUniformPtr(GL, Call^.UniformOffset + GL.FragSize), Paint, Scissor, StrokeWidth, Fringe, 1.0 - 0.5 / 255.0);
     end
     else
     begin
@@ -1313,19 +1303,19 @@ begin
     Exit;
 
   except
-    if GL^.NCalls > 0 then
-      Dec(GL^.NCalls);
+    if GL.NCalls > 0 then
+      Dec(GL.NCalls);
   end;
 end;
 
 procedure glnvg__RenderTriangles(Uptr: Pointer; Paint: PNVGPaint; CompositeOperation: TNVGCompositeOperationState; Scissor: PNVGScissor; Verts: PNVGVertex; NVerts: int32; Fringe: single);
 var
-  GL: PGLNVGContext;
+  GL: TGLContext;
   Call: PGLNVGCall;
   Frag: PGLNVGFragUniforms;
 begin
   try
-    GL := PGLNVGContext(Uptr);
+    GL := TGLContext(Uptr);
     Call := glnvg__AllocCall(GL);
     if Call = nil then
       Exit;
@@ -1339,7 +1329,7 @@ begin
       raise ENullPointerException.Create;
     Call^.TriangleCount := NVerts;
 
-    Move(Verts[0], GL^.Verts[Call^.TriangleOffset], SizeOf(TNVGVertex) * NVerts);
+    Move(Verts[0], GL.Verts[Call^.TriangleOffset], SizeOf(TNVGVertex) * NVerts);
 
     Call^.UniformOffset := glnvg__AllocFragUniforms(GL, 1);
     if Call^.UniformOffset = -1 then
@@ -1351,58 +1341,58 @@ begin
     Exit;
 
   except
-    if GL^.NCalls > 0 then
-      Dec(GL^.NCalls);
+    if GL.NCalls > 0 then
+      Dec(GL.NCalls);
   end;
 end;
 
 procedure glnvg__RenderDelete(Uptr: Pointer);
 var
-  GL: PGLNVGContext;
+  GL: TGLContext;
   I: int32;
 begin
-  GL := PGLNVGContext(Uptr);
+  GL := TGLContext(Uptr);
   if GL = nil then
     Exit;
 
-  glnvg__DeleteShader(@GL^.Shader);
+  glnvg__DeleteShader(@GL.Shader);
 
   {$IFDEF NANOVG_GL3}
   {$IFDEF NANOVG_GL_USE_UNIFORMBUFFER}
-  if GL^.FragBuf <> 0 then
-    glDeleteBuffers(1, @GL^.FragBuf);
+  if GL.FragBuf <> 0 then
+    glDeleteBuffers(1, @GL.FragBuf);
   {$ENDIF}
-  if GL^.VertArr <> 0 then
-    glDeleteVertexArrays(1, @GL^.VertArr);
+  if GL.VertArr <> 0 then
+    glDeleteVertexArrays(1, @GL.VertArr);
   {$ENDIF}
-  if GL^.VertBuf <> 0 then
-    glDeleteBuffers(1, @GL^.VertBuf);
+  if GL.VertBuf <> 0 then
+    OpenGL.glDeleteBuffers(1, @GL.VertBuf);
 
-  for I := 0 to GL^.NTextures - 1 do
+  for I := 0 to GL.NTextures - 1 do
   begin
-    if (GL^.Textures[I].Tex <> 0) and ((GL^.Textures[I].Flags and NVG_IMAGE_NODELETE) = 0) then
-      glDeleteTextures(1, @GL^.Textures[I].Tex);
+    if (GL.Textures[I].Tex <> 0) and ((GL.Textures[I].Flags and NVG_IMAGE_NODELETE) = 0) then
+      OpenGL.glDeleteTextures(1, @GL.Textures[I].Tex);
   end;
-  FreeMem(GL^.Textures);
+  FreeMem(GL.Textures);
 
-  FreeMem(GL^.Paths);
-  FreeMem(GL^.Verts);
-  FreeMem(GL^.Uniforms);
-  FreeMem(GL^.Calls);
+  FreeMem(GL.Paths);
+  FreeMem(GL.Verts);
+  FreeMem(GL.Uniforms);
+  FreeMem(GL.Calls);
 
   FreeMem(GL);
 end;
 
-function nvgCreateGL2(Flags: int32): PNVGContext;
+function nvgCreateGL2(Flags: int32): TNVContext;
 var
   Params: TNVGParams;
-  Ctx: PNVGContext;
-  GL: PGLNVGContext;
+  Ctx: TNVContext;
+  gl: TGLContext;
 begin
-  GetMem(GL, SizeOf(TGLNVGContext));
-  if GL = nil then
-    Exit(nil);
-  FillChar(GL^, SizeOf(TGLNVGContext), 0);
+  Result := nil;
+  gl := TGLContext.Create;
+  if gl = nil then
+    Exit;
 
   FillChar(Params, SizeOf(TNVGParams), 0);
   Params.RenderCreate := @glnvg__RenderCreate;
@@ -1420,29 +1410,29 @@ begin
   Params.UserPtr := GL;
   Params.EdgeAntiAlias := IfThen((Flags and NVG_ANTIALIAS) <> 0, True, False);
 
-  GL^.Flags := Flags;
+  GL.Flags := Flags;
 
   Ctx := nvgCreateInternal(@Params);
   if Ctx = nil then
   begin
-    FreeMem(GL);
-    Exit(nil);
-  end;
-
-  Result := Ctx;
+    GL.Free;
+    Result := nil;
+  end
+  else
+    Result := Ctx;
 end;
 
-procedure nvgDeleteGL2(Ctx: PNVGContext);
+procedure nvgDeleteGL2(Ctx: TNVContext);
 begin
   nvgDeleteInternal(Ctx);
 end;
 
-function nvglCreateImageFromHandleGL2(Ctx: PNVGContext; TextureID: GLuint; W, H, ImageFlags: int32): int32;
+function nvglCreateImageFromHandleGL2(Ctx: TNVContext; TextureID: GLuint; W, H, ImageFlags: int32): int32;
 var
-  GL: PGLNVGContext;
+  GL: TGLContext;
   Tex: PGLNVGTexture;
 begin
-  GL := PGLNVGContext(Ctx^.Params^.UserPtr);
+  GL := TGLContext(Ctx.Params^.UserPtr);
   Tex := glnvg__AllocTexture(GL);
   if Tex = nil then
     Exit(0);
@@ -1456,16 +1446,36 @@ begin
   Result := Tex^.ID;
 end;
 
-function nvglImageHandleGL2(Ctx: PNVGContext; Image: int32): GLuint;
+function nvglImageHandleGL2(Ctx: TNVContext; Image: int32): GLuint;
 var
-  GL: PGLNVGContext;
+  GL: TGLContext;
   Tex: PGLNVGTexture;
 begin
-  GL := PGLNVGContext(Ctx^.Params^.UserPtr);
+  GL := TGLContext(Ctx.Params^.UserPtr);
   Tex := glnvg__FindTexture(GL, Image);
   if Tex = nil then
     Exit(0);
   Result := Tex^.Tex;
+end;
+
+function nvgCreateGL3(Flags: int32): TNVContext; inline;
+begin
+  Result := nvgCreateGL2(Flags);
+end;
+
+procedure nvgDeleteGL3(Ctx: TNVContext); inline;
+begin
+  nvgDeleteGL2(Ctx);
+end;
+
+function nvglCreateImageFromHandleGL3(Ctx: TNVContext; TextureID: GLuint; W, H, ImageFlags: int32): int32; inline;
+begin
+  Result := nvglCreateImageFromHandleGL2(Ctx, TextureID, W, H, ImageFlags);
+end;
+
+function nvglImageHandleGL3(Ctx: TNVContext; Image: int32): GLuint; inline;
+begin
+  Result := nvglImageHandleGL2(Ctx, Image);
 end;
 
 end.
