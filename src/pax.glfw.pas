@@ -1,11 +1,11 @@
 unit pax.glfw;
 
 {$mode ObjFPC}{$H+}
-
+{ $DEFINE VK_VERSION_1_0}
 interface
 
 uses
-  Classes, SysUtils, dynlibs;
+  Classes, SysUtils, paxutils, dynlibs;
 
 const
   libGLFW = 'glfw3.' + SharedSuffix;
@@ -465,17 +465,17 @@ type
     procedure glfwTerminate();
     procedure glfwInitHint(hint, Value: integer);
     {$IFDEF GLFW3_LASTEST}
-procedure glfwInitAllocator(allocator: PGLFWallocator);  
+procedure glfwInitAllocator(allocator: PGLFWallocator);
 {$IFDEF VK_VERSION_1_0}
-procedure glfwInitVulkanLoader(loader: TGLFWVKProc); 
+procedure glfwInitVulkanLoader(loader: TGLFWVKProc);
 {$ENDIF} {$ENDIF}
     procedure glfwGetVersion(major, minor, rev: PInteger);
     function glfwGetVersionString(): pchar;
-    function glfwError(const description: PPChar): integer;
-    function glfwSetErrorCallback(cbfun: TGLFWerrorfun): TGLFWerrorfun;
+    function glfwGetError(description: pchar): integer;
+    function glfwSetErrorCallback(callback: TGLFWerrorfun): TGLFWerrorfun;
     {$IFDEF GLFW3_LASTEST}
-function glfwGetPlatform(): Integer; 
-function glfwPlatformSupported(platform: Integer): Integer; 
+function glfwGetPlatform(): Integer;
+function glfwPlatformSupported(platform: Integer): Integer;
     {$ENDIF}
     function glfwGetMonitors(out Count: integer): PPGLFWmonitor;
     function glfwGetPrimaryMonitor(): PGLFWmonitor;
@@ -485,9 +485,9 @@ function glfwPlatformSupported(platform: Integer): Integer;
     procedure glfwGetMonitorContentScale(monitor: PGLFWmonitor; xscale, yscale: PSingle);
     function glfwGetMonitorName(monitor: PGLFWmonitor): pchar;
     procedure glfwSetMonitorUserPointer(monitor: PGLFWmonitor; user: Pointer);
-    procedure glfwGetMonitorUserPointer(monitor: PGLFWmonitor);
-    function glfwSetMonitorCallback(cbfun: TGLFWmonitorfun): TGLFWmonitorfun;
-    function glfwGetVideoModes(monitor: PGLFWmonitor; out Count: PInteger): PGLFWvidmode;
+    function glfwGetMonitorUserPointer(monitor: PGLFWmonitor): pointer;
+    function glfwSetMonitorCallback(callback: TGLFWmonitorfun): TGLFWmonitorfun;
+    function glfwGetVideoModes(monitor: PGLFWmonitor; var Count: integer): PGLFWvidmode;
     function glfwGetVideoMode(monitor: PGLFWmonitor): PGLFWvidmode;
     procedure glfwSetGamma(monitor: PGLFWmonitor; gamma: single);
     function glfwGetGammaRamp(monitor: PGLFWmonitor): PGLFWgammaramp;
@@ -500,7 +500,7 @@ function glfwPlatformSupported(platform: Integer): Integer;
     function glfwWindowShouldClose(window: PGLFWwindow): integer;
     procedure glfwSetWindowShouldClose(window: PGLFWwindow; Value: integer);
     {$IFDEF GLFW3_LASTEST}
-function glfwGetWindowTitle(window: PGLFWwindow): PChar; 
+function glfwGetWindowTitle(window: PGLFWwindow): PChar;
     {$ENDIF}
     procedure glfwSetWindowTitle(window: PGLFWwindow; const title: pchar);
     procedure glfwSetWindowIcon(window: PGLFWwindow; Count: integer; const images: PGLFWimage);
@@ -588,11 +588,11 @@ function glfwGetWindowTitle(window: PGLFWwindow): PChar;
     function glfwExtensionSupported(const extension: pchar): integer;
     function glfwGetProcAddress(const procname: pchar): TGLFWGLProc;
     function glfwVulkanSupported(): integer;
-    function glfwGetRequiredInstanceExtensions(out Count: uint32): PPChar;
+    function glfwGetRequiredInstanceExtensions(var Count: uint32): ppchar;
     {$IFDEF VK_VERSION_1_0}
-function glfwGetInstanceProcAddress(instance: VkInstance; const procname: PChar): TGLFWVKProc; 
-function glfwGetPhysicalDevicePresentationSupport(instance: VkInstance; device: VkPhysicalDevice; queuefamily: Cardinal): Integer;  
-function glfwCreateWindowSurface(instance: VkInstance; window: PGLFWwindow; const allocator: PVkAllocationCallbacks; surface: PVkSurfaceKHR): TVkResult; 
+function glfwGetInstanceProcAddress(instance: VkInstance; const procname: PChar): TGLFWVKProc;
+function glfwGetPhysicalDevicePresentationSupport(instance: VkInstance; device: VkPhysicalDevice; queuefamily: Cardinal): Integer;
+function glfwCreateWindowSurface(instance: VkInstance; window: PGLFWwindow; const allocator: PVkAllocationCallbacks; surface: PVkSurfaceKHR): TVkResult;
     {$ENDIF}
   end;
 
@@ -604,149 +604,445 @@ implementation
 var
   singleton: IGLFW;
 
+type
+  // ===================================================================
+  // CORE - Inizializzazione, versione, errori
+  // ===================================================================
+  TGLFWInit = function: integer; cdecl;
+  TGLFWTerminate = procedure; cdecl;
+  TGLFWInitHint = procedure(hint: integer; Value: integer); cdecl;
+  TGLFWDefaultWindowHints = procedure; cdecl;
+  TGLFWGetVersion = procedure(major, minor, rev: PInteger); cdecl;
+  TGLFWGetVersionString = function: pchar; cdecl;
+  TGLFWGetError = function(description: pchar): integer; cdecl;
+  TGLFWSetErrorCallback = function(callback: TGLFWerrorfun): TGLFWerrorfun; cdecl;
+
+  // ===================================================================
+  // WINDOW HINTS
+  // ===================================================================
+  TGLFWWindowHint = procedure(hint: integer; Value: integer); cdecl;
+  TGLFWWindowHintString = procedure(hint: integer; Value: pchar); cdecl;
+
+  // ===================================================================
+  // WINDOW CREATION & DESTRUCTION
+  // ===================================================================
+  TGLFWCreateWindow = function(Width, Height: integer; const title: pchar; monitor: PGLFWmonitor; share: PGLFWwindow): PGLFWwindow; cdecl;
+  TGLFWDestroyWindow = procedure(window: PGLFWwindow); cdecl;
+  TGLFWWindowShouldClose = function(window: PGLFWwindow): integer; cdecl;
+  TGLFWSetWindowShouldClose = procedure(window: PGLFWwindow; Value: integer); cdecl;
+
+  // ===================================================================
+  // WINDOW - Title & Icon
+  // ===================================================================
+  TGLFWSetWindowTitle = procedure(window: PGLFWwindow; title: pchar); cdecl;
+  TGLFWSetWindowIcon = procedure(window: PGLFWwindow; Count: integer; images: PGLFWimage); cdecl;
+
+  // ===================================================================
+  // WINDOW - Position & Size
+  // ===================================================================
+  TGLFWGetWindowPos = procedure(window: PGLFWwindow; xpos, ypos: PInteger); cdecl;
+  TGLFWSetWindowPos = procedure(window: PGLFWwindow; xpos, ypos: integer); cdecl;
+  TGLFWGetWindowSize = procedure(window: PGLFWwindow; Width, Height: PInteger); cdecl;
+  TGLFWSetWindowSize = procedure(window: PGLFWwindow; Width, Height: integer); cdecl;
+  TGLFWSetWindowSizeLimits = procedure(window: PGLFWwindow; minw, minh, maxw, maxh: integer); cdecl;
+  TGLFWSetWindowAspectRatio = procedure(window: PGLFWwindow; numer, denom: integer); cdecl;
+
+  // ===================================================================
+  // WINDOW - Framebuffer & Scaling
+  // ===================================================================
+  TGLFWGetFramebufferSize = procedure(window: PGLFWwindow; Width, Height: PInteger); cdecl;
+  TGLFWGetWindowFrameSize = procedure(window: PGLFWwindow; left, top, right, bottom: PInteger); cdecl;
+  TGLFWGetWindowContentScale = procedure(window: PGLFWwindow; xscale, yscale: PSingle); cdecl;
+  TGLFWGetWindowOpacity = function(window: PGLFWwindow): single; cdecl;
+  TGLFWSetWindowOpacity = procedure(window: PGLFWwindow; opacity: single); cdecl;
+
+  // ===================================================================
+  // WINDOW - State
+  // ===================================================================
+  TGLFWIconifyWindow = procedure(window: PGLFWwindow); cdecl;
+  TGLFWRestoreWindow = procedure(window: PGLFWwindow); cdecl;
+  TGLFWMaximizeWindow = procedure(window: PGLFWwindow); cdecl;
+  TGLFWShowWindow = procedure(window: PGLFWwindow); cdecl;
+  TGLFWHideWindow = procedure(window: PGLFWwindow); cdecl;
+  TGLFWFocusWindow = procedure(window: PGLFWwindow); cdecl;
+  TGLFWRequestWindowAttention = procedure(window: PGLFWwindow); cdecl;
+  TGLFWGetWindowMonitor = function(window: PGLFWwindow): PGLFWmonitor; cdecl;
+  TGLFWSetWindowMonitor = procedure(window: PGLFWwindow; monitor: PGLFWmonitor; xpos, ypos, Width, Height, refreshRate: integer); cdecl;
+
+  // ===================================================================
+  // WINDOW - Attributes
+  // ===================================================================
+  TGLFWGetWindowAttrib = function(window: PGLFWwindow; attrib: integer): integer; cdecl;
+  TGLFWSetWindowAttrib = procedure(window: PGLFWwindow; attrib, Value: integer); cdecl;
+  TGLFWSetWindowUserPointer = procedure(window: PGLFWwindow; pointer: Pointer); cdecl;
+  TGLFWGetWindowUserPointer = function(window: PGLFWwindow): Pointer; cdecl;
+
+  // ===================================================================
+  // WINDOW - Callbacks
+  // ===================================================================
+  TGLFWSetWindowPosCallback = function(window: PGLFWwindow; callback: TGLFWwindowposfun): TGLFWwindowposfun; cdecl;
+  TGLFWSetWindowSizeCallback = function(window: PGLFWwindow; callback: TGLFWwindowsizefun): TGLFWwindowsizefun; cdecl;
+  TGLFWSetWindowCloseCallback = function(window: PGLFWwindow; callback: TGLFWwindowclosefun): TGLFWwindowclosefun; cdecl;
+  TGLFWSetWindowRefreshCallback = function(window: PGLFWwindow; callback: TGLFWwindowrefreshfun): TGLFWwindowrefreshfun; cdecl;
+  TGLFWSetWindowFocusCallback = function(window: PGLFWwindow; callback: TGLFWwindowfocusfun): TGLFWwindowfocusfun; cdecl;
+  TGLFWSetWindowIconifyCallback = function(window: PGLFWwindow; callback: TGLFWwindowiconifyfun): TGLFWwindowiconifyfun; cdecl;
+  TGLFWSetWindowMaximizeCallback = function(window: PGLFWwindow; callback: TGLFWwindowmaximizefun): TGLFWwindowmaximizefun; cdecl;
+  TGLFWSetFramebufferSizeCallback = function(window: PGLFWwindow; callback: TGLFWframebuffersizefun): TGLFWframebuffersizefun; cdecl;
+  TGLFWSetWindowContentScaleCallback = function(window: PGLFWwindow; callback: TGLFWwindowcontentscalefun): TGLFWwindowcontentscalefun; cdecl;
+
+  // ===================================================================
+  // EVENTS
+  // ===================================================================
+  TGLFWPollEvents = procedure; cdecl;
+  TGLFWWaitEvents = procedure; cdecl;
+  TGLFWWaitEventsTimeout = procedure(timeout: double); cdecl;
+  TGLFWPostEmptyEvent = procedure; cdecl;
+
+  // ===================================================================
+  // INPUT - Mode & Raw
+  // ===================================================================
+  TGLFWGetInputMode = function(window: PGLFWwindow; mode: integer): integer; cdecl;
+  TGLFWSetInputMode = procedure(window: PGLFWwindow; mode, Value: integer); cdecl;
+  TGLFWRawMouseMotionSupported = function: integer; cdecl;
+
+  // ===================================================================
+  // INPUT - Keyboard & Mouse
+  // ===================================================================
+  TGLFWGetKey = function(window: PGLFWwindow; key: integer): integer; cdecl;
+  TGLFWGetMouseButton = function(window: PGLFWwindow; button: integer): integer; cdecl;
+  TGLFWGetCursorPos = procedure(window: PGLFWwindow; xpos, ypos: PDouble); cdecl;
+  TGLFWSetCursorPos = procedure(window: PGLFWwindow; xpos, ypos: double); cdecl;
+  TGLFWGetKeyName = function(key, scancode: integer): pchar; cdecl;
+  TGLFWGetKeyScancode = function(key: integer): integer; cdecl;
+
+  // ===================================================================
+  // CURSOR
+  // ===================================================================
+  TGLFWCreateCursor = function(const image: PGLFWimage; xhot, yhot: integer): PGLFWcursor; cdecl;
+  TGLFWCreateStandardCursor = function(shape: integer): PGLFWcursor; cdecl;
+  TGLFWDestroyCursor = procedure(cursor: PGLFWcursor); cdecl;
+  TGLFWSetCursor = procedure(window: PGLFWwindow; cursor: PGLFWcursor); cdecl;
+
+  // ===================================================================
+  // INPUT CALLBACKS
+  // ===================================================================
+  TGLFWSetKeyCallback = function(window: PGLFWwindow; callback: TGLFWkeyfun): TGLFWkeyfun; cdecl;
+  TGLFWSetCharCallback = function(window: PGLFWwindow; callback: TGLFWcharfun): TGLFWcharfun; cdecl;
+  TGLFWSetCharModsCallback = function(window: PGLFWwindow; callback: TGLFWcharmodsfun): TGLFWcharmodsfun; cdecl;
+  TGLFWSetMouseButtonCallback = function(window: PGLFWwindow; callback: TGLFWmousebuttonfun): TGLFWmousebuttonfun; cdecl;
+  TGLFWSetCursorPosCallback = function(window: PGLFWwindow; callback: TGLFWcursorposfun): TGLFWcursorposfun; cdecl;
+  TGLFWSetCursorEnterCallback = function(window: PGLFWwindow; callback: TGLFWcursorenterfun): TGLFWcursorenterfun; cdecl;
+  TGLFWSetScrollCallback = function(window: PGLFWwindow; callback: TGLFWscrollfun): TGLFWscrollfun; cdecl;
+  TGLFWSetDropCallback = function(window: PGLFWwindow; callback: TGLFWdropfun): TGLFWdropfun; cdecl;
+
+  // ===================================================================
+  // MONITOR
+  // ===================================================================
+  TGLFWGetMonitors = function(Count: PInteger): PPGLFWmonitor; cdecl;
+  TGLFWGetPrimaryMonitor = function: PGLFWmonitor; cdecl;
+  TGLFWGetMonitorPos = procedure(monitor: PGLFWmonitor; xpos, ypos: PInteger); cdecl;
+  TGLFWGetMonitorWorkarea = procedure(monitor: PGLFWmonitor; xpos, ypos, Width, Height: PInteger); cdecl;
+  TGLFWGetMonitorPhysicalSize = procedure(monitor: PGLFWmonitor; widthMM, heightMM: PInteger); cdecl;
+  TGLFWGetMonitorContentScale = procedure(monitor: PGLFWmonitor; xscale, yscale: PSingle); cdecl;
+  TGLFWGetMonitorName = function(monitor: PGLFWmonitor): pchar; cdecl;
+  TGLFWSetMonitorUserPointer = procedure(monitor: PGLFWmonitor; pointer: Pointer); cdecl;
+  TGLFWGetMonitorUserPointer = function(monitor: PGLFWmonitor): Pointer; cdecl;
+  TGLFWSetMonitorCallback = function(callback: TGLFWmonitorfun): TGLFWmonitorfun; cdecl;
+  TGLFWGetVideoModes = function(monitor: PGLFWmonitor; var Count: integer): PGLFWvidmode; cdecl;
+  TGLFWGetVideoMode = function(monitor: PGLFWmonitor): PGLFWvidmode; cdecl;
+  TGLFWSetGamma = procedure(monitor: PGLFWmonitor; gamma: single); cdecl;
+  TGLFWGetGammaRamp = function(monitor: PGLFWmonitor): PGLFWgammaramp; cdecl;
+  TGLFWSetGammaRamp = procedure(monitor: PGLFWmonitor; const ramp: PGLFWgammaramp); cdecl;
+
+  // ===================================================================
+  // JOYSTICK / GAMEPAD
+  // ===================================================================
+  TGLFWJoystickPresent = function(jid: integer): integer; cdecl;
+  TGLFWGetJoystickAxes = function(jid: integer; Count: PInteger): PSingle; cdecl;
+  TGLFWGetJoystickButtons = function(jid: integer; Count: PInteger): pbyte; cdecl;
+  TGLFWGetJoystickHats = function(jid: integer; Count: PInteger): pbyte; cdecl;
+  TGLFWGetJoystickName = function(jid: integer): pchar; cdecl;
+  TGLFWGetJoystickGUID = function(jid: integer): pchar; cdecl;
+  TGLFWSetJoystickUserPointer = procedure(jid: integer; pointer: Pointer); cdecl;
+  TGLFWGetJoystickUserPointer = function(jid: integer): Pointer; cdecl;
+  TGLFWJoystickIsGamepad = function(jid: integer): integer; cdecl;
+  TGLFWSetJoystickCallback = function(callback: TGLFWjoystickfun): TGLFWjoystickfun; cdecl;
+  TGLFWUpdateGamepadMappings = function(str: pchar): integer; cdecl;
+  TGLFWGetGamepadName = function(jid: integer): pchar; cdecl;
+  TGLFWGetGamepadState = function(jid: integer; state: PGLFWgamepadstate): integer; cdecl;
+
+  // ===================================================================
+  // CLIPBOARD
+  // ===================================================================
+  TGLFWSetClipboardString = procedure(window: PGLFWwindow; str: pchar); cdecl;
+  TGLFWGetClipboardString = function(window: PGLFWwindow): pchar; cdecl;
+
+  // ===================================================================
+  // TIMER
+  // ===================================================================
+  TGLFWGetTime = function: double; cdecl;
+  TGLFWSetTime = procedure(time: double); cdecl;
+  TGLFWGetTimerValue = function: uint64; cdecl;
+  TGLFWGetTimerFrequency = function: uint64; cdecl;
+
+  // ===================================================================
+  // CONTEXT
+  // ===================================================================
+  TGLFWMakeContextCurrent = procedure(window: PGLFWwindow); cdecl;
+  TGLFWGetCurrentContext = function: PGLFWwindow; cdecl;
+  TGLFWSwapBuffers = procedure(window: PGLFWwindow); cdecl;
+  TGLFWSwapInterval = procedure(interval: integer); cdecl;
+
+  // ===================================================================
+  // EXTENSIONS
+  // ===================================================================
+  TGLFWExtensionSupported = function(const extension: pchar): integer; cdecl;
+  TGLFWGetProcAddress = function(const procname: pchar): TGLFWGLProc; cdecl;
+
+  // ===================================================================
+  // VULKAN
+  // ===================================================================
+  TGLFWVulkanSupported = function: integer; cdecl;
+  TGLFWGetRequiredInstanceExtensions = function(var Count: cardinal): ppchar; cdecl;
+
+  {$IFDEF VK_VERSION_1_0}
+    TGLFWGetInstanceProcAddress = function(instance: VkInstance; const procname: pchar): TGLFWVKProc; cdecl;
+    TGLFWGetPhysicalDevicePresentationSupport = function(instance: VkInstance; device: VkPhysicalDevice; queuefamily: Cardinal): Integer; cdecl;
+    TGLFWCreateWindowSurface = function(instance: VkInstance; window: PGLFWwindow; const allocator: PVkAllocationCallbacks; surface: PVkSurfaceKHR): TVkResult; cdecl;
+  {$ENDIF}
+
+  // ===================================================================
+  // GLFW 3.4+ (solo se definito GLFW3_LASTEST)
+  // ===================================================================
+  {$IFDEF GLFW3_LASTEST}
+    TGLFWInitAllocator = procedure(allocator: PGLFWallocator); cdecl;
+    TGLFWInitVulkanLoader = procedure(loader: TGLFWVKProc); cdecl;
+    TGLFWGetPlatform = function: Integer; cdecl;
+    TGLFWPlatformSupported = function(platform: Integer): Integer; cdecl;
+    TGLFWGetWindowTitle = function(window: PGLFWwindow): pchar; cdecl;
+  {$ENDIF}
 
 type
   { TGLFW }
 
   TGLFW = class(TInterfacedObject, IGLFW)
   protected
-  type
-    // Core
-    TglfwInit = function: integer; cdecl;
-    TglfwTerminate = procedure; cdecl;
-    TglfwGetVersionString = function: pansichar; cdecl;
+    // ===================================================================
+    // CORE - Inizializzazione, versione, errori
+    // ===================================================================
+    FGLFWInit: TGLFWInit;
+    FGLFWTerminate: TGLFWTerminate;
+    FGLFWInitHint: TGLFWInitHint;
+    FGLFWDefaultWindowHints: TGLFWDefaultWindowHints;
+    FGLFWGetVersion: TGLFWGetVersion;
+    FGLFWGetVersionString: TGLFWGetVersionString;
+    FGLFWGetError: TGLFWGetError;
+    FGLFWSetErrorCallback: TGLFWSetErrorCallback;
 
-    // Window management
-    TglfwWindowHint = procedure(hint: integer; Value: integer); cdecl;
-    TglfwCreateWindow = function(Width: integer; Height: integer; const title: pansichar; monitor: PGLFWmonitor; share: PGLFWwindow): PGLFWwindow; cdecl;
-    TglfwDestroyWindow = procedure(window: PGLFWwindow); cdecl;
-    TglfwWindowShouldClose = function(window: PGLFWwindow): integer; cdecl;
-    TglfwSetWindowShouldClose = procedure(window: PGLFWwindow; Value: integer); cdecl;
-    TglfwPollEvents = procedure; cdecl;
-    TglfwWaitEvents = procedure; cdecl;
-    TglfwWaitEventsTimeout = procedure(timeout: double); cdecl;
-    TglfwPostEmptyEvent = procedure; cdecl;
-    TglfwSwapBuffers = procedure(window: PGLFWwindow); cdecl;
-    TglfwMakeContextCurrent = procedure(window: PGLFWwindow); cdecl;
-    TglfwGetCurrentContext = function: PGLFWwindow; cdecl;
-    TglfwSwapInterval = procedure(interval: integer); cdecl;
-    TglfwGetFramebufferSize = procedure(window: PGLFWwindow; Width: PInteger; Height: PInteger); cdecl;
+    // ===================================================================
+    // WINDOW HINTS
+    // ===================================================================
+    FGLFWWindowHint: TGLFWWindowHint;
+    FGLFWWindowHintString: TGLFWWindowHintString;
 
-    // Input
-    TglfwGetKey = function(window: PGLFWwindow; key: integer): integer; cdecl;
-    TglfwGetMouseButton = function(window: PGLFWwindow; button: integer): integer; cdecl;
-    TglfwGetCursorPos = procedure(window: PGLFWwindow; xpos: PDouble; ypos: PDouble); cdecl;
-    TglfwSetCursorPos = procedure(window: PGLFWwindow; xpos: double; ypos: double); cdecl;
+    // ===================================================================
+    // WINDOW - Creazione e distruzione
+    // ===================================================================
+    FGLFWCreateWindow: TGLFWCreateWindow;
+    FGLFWDestroyWindow: TGLFWDestroyWindow;
+    FGLFWWindowShouldClose: TGLFWWindowShouldClose;
+    FGLFWSetWindowShouldClose: TGLFWSetWindowShouldClose;
 
-    // Callbacks
-    TglfwSetKeyCallback = function(window: PGLFWwindow; callback: TGLFWkeyfun): TGLFWkeyfun; cdecl;
-    TglfwSetCharCallback = function(window: PGLFWwindow; callback: TGLFWcharfun): TGLFWcharfun; cdecl;
-    TglfwSetMouseButtonCallback = function(window: PGLFWwindow; callback: TGLFWmousebuttonfun): TGLFWmousebuttonfun; cdecl;
-    TglfwSetCursorPosCallback = function(window: PGLFWwindow; callback: TGLFWcursorposfun): TGLFWcursorposfun; cdecl;
-    TglfwSetScrollCallback = function(window: PGLFWwindow; callback: TGLFWscrollfun): TGLFWscrollfun; cdecl;
-    TglfwSetDropCallback = function(window: PGLFWwindow; callback: TGLFWdropfun): TGLFWdropfun; cdecl;
+    // ===================================================================
+    // WINDOW - Titolo e icona
+    // ===================================================================
+    FGLFWSetWindowTitle: TGLFWSetWindowTitle;
+    FGLFWSetWindowIcon: TGLFWSetWindowIcon;
 
-    // Cursor
-    TglfwCreateCursor = function(const image: PGLFWimage; xhot, yhot: integer): PGLFWcursor; cdecl;
-    TglfwCreateStandardCursor = function(shape: integer): PGLFWcursor; cdecl;
-    TglfwDestroyCursor = procedure(cursor: PGLFWcursor); cdecl;
-    TglfwSetCursor = procedure(window: PGLFWwindow; cursor: PGLFWcursor); cdecl;
+    // ===================================================================
+    // WINDOW - Posizione e dimensione
+    // ===================================================================
+    FGLFWGetWindowPos: TGLFWGetWindowPos;
+    FGLFWSetWindowPos: TGLFWSetWindowPos;
+    FGLFWGetWindowSize: TGLFWGetWindowSize;
+    FGLFWSetWindowSize: TGLFWSetWindowSize;
+    FGLFWSetWindowSizeLimits: TGLFWSetWindowSizeLimits;
+    FGLFWSetWindowAspectRatio: TGLFWSetWindowAspectRatio;
 
-    // Clipboard
-    TglfwSetClipboardString = procedure(window: PGLFWwindow; const str: pansichar); cdecl;
-    TglfwGetClipboardString = function(window: PGLFWwindow): pansichar; cdecl;
+    // ===================================================================
+    // WINDOW - Framebuffer e scaling
+    // ===================================================================
+    FGLFWGetFramebufferSize: TGLFWGetFramebufferSize;
+    FGLFWGetWindowFrameSize: TGLFWGetWindowFrameSize;
+    FGLFWGetWindowContentScale: TGLFWGetWindowContentScale;
+    FGLFWGetWindowOpacity: TGLFWGetWindowOpacity;
+    FGLFWSetWindowOpacity: TGLFWSetWindowOpacity;
 
-    // Timer
-    TglfwGetTime = function: double; cdecl;
-    TglfwSetTime = procedure(time: double); cdecl;
-    TglfwGetTimerValue = function: uint64; cdecl;
-    TglfwGetTimerFrequency = function: uint64; cdecl;
+    // ===================================================================
+    // WINDOW - Stato
+    // ===================================================================
+    FGLFWIconifyWindow: TGLFWIconifyWindow;
+    FGLFWRestoreWindow: TGLFWRestoreWindow;
+    FGLFWMaximizeWindow: TGLFWMaximizeWindow;
+    FGLFWShowWindow: TGLFWShowWindow;
+    FGLFWHideWindow: TGLFWHideWindow;
+    FGLFWFocusWindow: TGLFWFocusWindow;
+    FGLFWRequestWindowAttention: TGLFWRequestWindowAttention;
+    FGLFWGetWindowMonitor: TGLFWGetWindowMonitor;
+    FGLFWSetWindowMonitor: TGLFWSetWindowMonitor;
 
-    // OpenGL / Vulkan
-    TglfwExtensionSupported = function(const extension: pansichar): integer; cdecl;
-    TglfwGetProcAddress = function(const procname: pansichar): Pointer; cdecl;
-    TglfwVulkanSupported = function: integer; cdecl;
-    TglfwGetRequiredInstanceExtensions = function(Count: PCardinal): PPAnsiChar; cdecl;
-    TglfwCreateWindowSurface = function(instance: Pointer; window: PGLFWwindow; const allocator: Pointer; surface: PPointer): integer; cdecl;
+    // ===================================================================
+    // WINDOW - Attributi
+    // ===================================================================
+    FGLFWGetWindowAttrib: TGLFWGetWindowAttrib;
+    FGLFWSetWindowAttrib: TGLFWSetWindowAttrib;
+    FGLFWSetWindowUserPointer: TGLFWSetWindowUserPointer;
+    FGLFWGetWindowUserPointer: TGLFWGetWindowUserPointer;
 
-    // 3.4+ funzioni moderne
-    TglfwSetWindowAttrib = procedure(window: PGLFWwindow; attrib: integer; Value: integer); cdecl;
-    TglfwGetWindowAttrib = function(window: PGLFWwindow; attrib: integer): integer; cdecl;
-    TglfwSetWindowAspectRatio = procedure(window: PGLFWwindow; numer, denom: integer); cdecl;
-    TglfwSetWindowSizeLimits = procedure(window: PGLFWwindow; minwidth, minheight, maxwidth, maxheight: integer); cdecl;
+    // ===================================================================
+    // WINDOW - Callback
+    // ===================================================================
+    FGLFWSetWindowPosCallback: TGLFWSetWindowPosCallback;
+    FGLFWSetWindowSizeCallback: TGLFWSetWindowSizeCallback;
+    FGLFWSetWindowCloseCallback: TGLFWSetWindowCloseCallback;
+    FGLFWSetWindowRefreshCallback: TGLFWSetWindowRefreshCallback;
+    FGLFWSetWindowFocusCallback: TGLFWSetWindowFocusCallback;
+    FGLFWSetWindowIconifyCallback: TGLFWSetWindowIconifyCallback;
+    FGLFWSetWindowMaximizeCallback: TGLFWSetWindowMaximizeCallback;
+    FGLFWSetFramebufferSizeCallback: TGLFWSetFramebufferSizeCallback;
+    FGLFWSetWindowContentScaleCallback: TGLFWSetWindowContentScaleCallback;
 
-    // Joystick / Gamepad
-    TglfwJoystickPresent = function(joy: integer): integer; cdecl;
-    TglfwGetJoystickAxes = function(joy: integer; Count: PInteger): PSingle; cdecl;
-    TglfwGetJoystickButtons = function(joy: integer; Count: PInteger): pbyte; cdecl;
-    TglfwGetJoystickHats = function(joy: integer; Count: PInteger): pbyte; cdecl;
-    TglfwGetJoystickName = function(joy: integer): pansichar; cdecl;
-    TglfwGetGamepadState = function(joy: integer; state: PGLFWgamepadstate): integer; cdecl;
-  protected
-    FglfwInit: TglfwInit;
-    FglfwTerminate: TglfwTerminate;
-    FglfwGetVersionString: TglfwGetVersionString;
+    // ===================================================================
+    // EVENTS
+    // ===================================================================
+    FGLFWPollEvents: TGLFWPollEvents;
+    FGLFWWaitEvents: TGLFWWaitEvents;
+    FGLFWWaitEventsTimeout: TGLFWWaitEventsTimeout;
+    FGLFWPostEmptyEvent: TGLFWPostEmptyEvent;
 
-    // Window
-    FglfwWindowHint: TglfwWindowHint;
-    FglfwCreateWindow: TglfwCreateWindow;
-    FglfwDestroyWindow: TglfwDestroyWindow;
-    FglfwWindowShouldClose: TglfwWindowShouldClose;
-    FglfwSetWindowShouldClose: TglfwSetWindowShouldClose;
-    FglfwPollEvents: TglfwPollEvents;
-    FglfwWaitEvents: TglfwWaitEvents;
-    FglfwSwapBuffers: TglfwSwapBuffers;
-    FglfwMakeContextCurrent: TglfwMakeContextCurrent;
-    FglfwGetCurrentContext: TglfwGetCurrentContext;
-    FglfwSwapInterval: TglfwSwapInterval;
-    FglfwGetFramebufferSize: TglfwGetFramebufferSize;
+    // ===================================================================
+    // INPUT - Modalità e stato
+    // ===================================================================
+    FGLFWGetInputMode: TGLFWGetInputMode;
+    FGLFWSetInputMode: TGLFWSetInputMode;
+    FGLFWRawMouseMotionSupported: TGLFWRawMouseMotionSupported;
 
-    // Input
-    FglfwGetKey: TglfwGetKey;
-    FglfwGetMouseButton: TglfwGetMouseButton;
-    FglfwGetCursorPos: TglfwGetCursorPos;
-    FglfwSetCursorPos: TglfwSetCursorPos;
+    // ===================================================================
+    // INPUT - Tastiera e mouse
+    // ===================================================================
+    FGLFWGetKey: TGLFWGetKey;
+    FGLFWGetMouseButton: TGLFWGetMouseButton;
+    FGLFWGetCursorPos: TGLFWGetCursorPos;
+    FGLFWSetCursorPos: TGLFWSetCursorPos;
+    FGLFWGetKeyName: TGLFWGetKeyName;
+    FGLFWGetKeyScancode: TGLFWGetKeyScancode;
 
-    // Callbacks
-    FglfwSetKeyCallback: TglfwSetKeyCallback;
-    FglfwSetCharCallback: TglfwSetCharCallback;
-    FglfwSetMouseButtonCallback: TglfwSetMouseButtonCallback;
-    FglfwSetCursorPosCallback: TglfwSetCursorPosCallback;
-    FglfwSetScrollCallback: TglfwSetScrollCallback;
-    FglfwSetDropCallback: TglfwSetDropCallback;
+    // ===================================================================
+    // CURSOR
+    // ===================================================================
+    FGLFWCreateCursor: TGLFWCreateCursor;
+    FGLFWCreateStandardCursor: TGLFWCreateStandardCursor;
+    FGLFWDestroyCursor: TGLFWDestroyCursor;
+    FGLFWSetCursor: TGLFWSetCursor;
 
-    // Cursor & Clipboard
-    FglfwCreateCursor: TglfwCreateCursor;
-    FglfwCreateStandardCursor: TglfwCreateStandardCursor;
-    FglfwDestroyCursor: TglfwDestroyCursor;
-    FglfwSetCursor: TglfwSetCursor;
-    FglfwSetClipboardString: TglfwSetClipboardString;
-    FglfwGetClipboardString: TglfwGetClipboardString;
+    // ===================================================================
+    // INPUT CALLBACKS
+    // ===================================================================
+    FGLFWSetKeyCallback: TGLFWSetKeyCallback;
+    FGLFWSetCharCallback: TGLFWSetCharCallback;
+    FGLFWSetCharModsCallback: TGLFWSetCharModsCallback;
+    FGLFWSetMouseButtonCallback: TGLFWSetMouseButtonCallback;
+    FGLFWSetCursorPosCallback: TGLFWSetCursorPosCallback;
+    FGLFWSetCursorEnterCallback: TGLFWSetCursorEnterCallback;
+    FGLFWSetScrollCallback: TGLFWSetScrollCallback;
+    FGLFWSetDropCallback: TGLFWSetDropCallback;
 
-    // Timer
-    FglfwGetTime: TglfwGetTime;
-    FglfwSetTime: TglfwSetTime;
+    // ===================================================================
+    // MONITOR
+    // ===================================================================
+    FGLFWGetMonitors: TGLFWGetMonitors;
+    FGLFWGetPrimaryMonitor: TGLFWGetPrimaryMonitor;
+    FGLFWGetMonitorPos: TGLFWGetMonitorPos;
+    FGLFWGetMonitorWorkarea: TGLFWGetMonitorWorkarea;
+    FGLFWGetMonitorPhysicalSize: TGLFWGetMonitorPhysicalSize;
+    FGLFWGetMonitorContentScale: TGLFWGetMonitorContentScale;
+    FGLFWGetMonitorName: TGLFWGetMonitorName;
+    FGLFWSetMonitorUserPointer: TGLFWSetMonitorUserPointer;
+    FGLFWGetMonitorUserPointer: TGLFWGetMonitorUserPointer;
+    FGLFWSetMonitorCallback: TGLFWSetMonitorCallback;
+    FGLFWGetVideoModes: TGLFWGetVideoModes;
+    FGLFWGetVideoMode: TGLFWGetVideoMode;
+    FGLFWSetGamma: TGLFWSetGamma;
+    FGLFWGetGammaRamp: TGLFWGetGammaRamp;
+    FGLFWSetGammaRamp: TGLFWSetGammaRamp;
 
-    // Vulkan / OpenGL
-    FglfwExtensionSupported: TglfwExtensionSupported;
-    FglfwGetProcAddress: TglfwGetProcAddress;
-    FglfwVulkanSupported: TglfwVulkanSupported;
-    FglfwGetRequiredInstanceExtensions: TglfwGetRequiredInstanceExtensions;
-    FglfwCreateWindowSurface: TglfwCreateWindowSurface;
+    // ===================================================================
+    // JOYSTICK / GAMEPAD
+    // ===================================================================
+    FGLFWJoystickPresent: TGLFWJoystickPresent;
+    FGLFWGetJoystickAxes: TGLFWGetJoystickAxes;
+    FGLFWGetJoystickButtons: TGLFWGetJoystickButtons;
+    FGLFWGetJoystickHats: TGLFWGetJoystickHats;
+    FGLFWGetJoystickName: TGLFWGetJoystickName;
+    FGLFWGetJoystickGUID: TGLFWGetJoystickGUID;
+    FGLFWSetJoystickUserPointer: TGLFWSetJoystickUserPointer;
+    FGLFWGetJoystickUserPointer: TGLFWGetJoystickUserPointer;
+    FGLFWJoystickIsGamepad: TGLFWJoystickIsGamepad;
+    FGLFWSetJoystickCallback: TGLFWSetJoystickCallback;
+    FGLFWUpdateGamepadMappings: TGLFWUpdateGamepadMappings;
+    FGLFWGetGamepadName: TGLFWGetGamepadName;
+    FGLFWGetGamepadState: TGLFWGetGamepadState;
 
-    // 3.4+
-    FglfwSetWindowAttrib: TglfwSetWindowAttrib;
-    FglfwGetWindowAttrib: TglfwGetWindowAttrib;
-    FglfwSetWindowAspectRatio: TglfwSetWindowAspectRatio;
-    FglfwSetWindowSizeLimits: TglfwSetWindowSizeLimits;
+    // ===================================================================
+    // CLIPBOARD
+    // ===================================================================
+    FGLFWSetClipboardString: TGLFWSetClipboardString;
+    FGLFWGetClipboardString: TGLFWGetClipboardString;
 
-    // Joystick
-    FglfwJoystickPresent: TglfwJoystickPresent;
-    FglfwGetJoystickAxes: TglfwGetJoystickAxes;
-    FglfwGetJoystickButtons: TglfwGetJoystickButtons;
-    FglfwGetJoystickHats: TglfwGetJoystickHats;
-    FglfwGetJoystickName: TglfwGetJoystickName;
-    FglfwGetGamepadState: TglfwGetGamepadState;
+    // ===================================================================
+    // TIMER
+    // ===================================================================
+    FGLFWGetTime: TGLFWGetTime;
+    FGLFWSetTime: TGLFWSetTime;
+    FGLFWGetTimerValue: TGLFWGetTimerValue;
+    FGLFWGetTimerFrequency: TGLFWGetTimerFrequency;
+
+    // ===================================================================
+    // CONTEXT
+    // ===================================================================
+    FGLFWMakeContextCurrent: TGLFWMakeContextCurrent;
+    FGLFWGetCurrentContext: TGLFWGetCurrentContext;
+    FGLFWSwapBuffers: TGLFWSwapBuffers;
+    FGLFWSwapInterval: TGLFWSwapInterval;
+
+    // ===================================================================
+    // EXTENSIONS
+    // ===================================================================
+    FGLFWExtensionSupported: TGLFWExtensionSupported;
+    FGLFWGetProcAddress: TGLFWGetProcAddress;
+
+    // ===================================================================
+    // VULKAN
+    // ===================================================================
+    FGLFWVulkanSupported: TGLFWVulkanSupported;
+    FGLFWGetRequiredInstanceExtensions: TGLFWGetRequiredInstanceExtensions;
+
+    {$IFDEF VK_VERSION_1_0}
+    FGLFWGetInstanceProcAddress: TGLFWGetInstanceProcAddress;
+    FGLFWGetPhysicalDevicePresentationSupport: TGLFWGetPhysicalDevicePresentationSupport;
+    FGLFWCreateWindowSurface: TGLFWCreateWindowSurface;
+    {$ENDIF}
+
+    // ===================================================================
+    // GLFW 3.4+ (solo se definito GLFW3_LASTEST)
+    // ===================================================================
+    {$IFDEF GLFW3_LASTEST}
+    FGLFWInitAllocator: TGLFWInitAllocator;
+    FGLFWInitVulkanLoader: TGLFWInitVulkanLoader;
+    FGLFWGetPlatform: TGLFWGetPlatform;
+    FGLFWPlatformSupported: TGLFWPlatformSupported;
+    FGLFWGetWindowTitle: TGLFWGetWindowTitle;
+    {$ENDIF}
   protected
     FHandle: TLibHandle;
   protected
@@ -765,11 +1061,12 @@ type
 procedure glfwInitAllocator(allocator: PGLFWallocator); virtual;
 {$IFDEF VK_VERSION_1_0}
 procedure glfwInitVulkanLoader(loader: TGLFWVKProc); virtual;
-{$ENDIF} {$ENDIF}
+{$ENDIF}
+    {$ENDIF}
     procedure glfwGetVersion(major, minor, rev: PInteger); virtual;
     function glfwGetVersionString(): pchar; virtual;
-    function glfwError(const description: PPChar): integer; virtual;
-    function glfwSetErrorCallback(cbfun: TGLFWerrorfun): TGLFWerrorfun; virtual;
+    function glfwGetError(description: pchar): integer; virtual;
+    function glfwSetErrorCallback(callback: TGLFWerrorfun): TGLFWerrorfun; virtual;
     {$IFDEF GLFW3_LASTEST}
 function glfwGetPlatform(): Integer;
 function glfwPlatformSupported(platform: Integer): Integer;
@@ -782,9 +1079,9 @@ function glfwPlatformSupported(platform: Integer): Integer;
     procedure glfwGetMonitorContentScale(monitor: PGLFWmonitor; xscale, yscale: PSingle); virtual;
     function glfwGetMonitorName(monitor: PGLFWmonitor): pchar; virtual;
     procedure glfwSetMonitorUserPointer(monitor: PGLFWmonitor; user: Pointer); virtual;
-    procedure glfwGetMonitorUserPointer(monitor: PGLFWmonitor); virtual;
-    function glfwSetMonitorCallback(cbfun: TGLFWmonitorfun): TGLFWmonitorfun; virtual;
-    function glfwGetVideoModes(monitor: PGLFWmonitor; out Count: PInteger): PGLFWvidmode; virtual;
+    function glfwGetMonitorUserPointer(monitor: PGLFWmonitor): pointer; virtual;
+    function glfwSetMonitorCallback(callback: TGLFWmonitorfun): TGLFWmonitorfun; virtual;
+    function glfwGetVideoModes(monitor: PGLFWmonitor; var Count: integer): PGLFWvidmode; virtual;
     function glfwGetVideoMode(monitor: PGLFWmonitor): PGLFWvidmode; virtual;
     procedure glfwSetGamma(monitor: PGLFWmonitor; gamma: single); virtual;
     function glfwGetGammaRamp(monitor: PGLFWmonitor): PGLFWgammaramp; virtual;
@@ -869,10 +1166,10 @@ function glfwGetWindowTitle(window: PGLFWwindow): PChar; virtual;
     function glfwGetJoystickUserPointer(jId: integer): Pointer; virtual;
     function glfwJoystickIsGamepad(jId: integer): integer; virtual;
     function glfwSetJoystickCallback(callback: TGLFWjoystickfun): TGLFWjoystickfun; virtual;
-    function glfwUpdateGamepadMappings(const string_: pchar): integer; virtual;
+    function glfwUpdateGamepadMappings(const str: pchar): integer; virtual;
     function glfwGetGamepadName(jId: integer): pchar; virtual;
     function glfwGetGamepadState(jId: integer; state: PGLFWgamepadstate): integer; virtual;
-    procedure glfwSetClipboardString(window: PGLFWwindow; const Text: pchar); virtual;
+    procedure glfwSetClipboardString(window: PGLFWwindow; const str: pchar); virtual;
     function glfwGetClipboardString(window: PGLFWwindow): pchar; virtual;
     function glfwGetTime(): double; virtual;
     procedure glfwSetTime(time: double); virtual;
@@ -885,7 +1182,7 @@ function glfwGetWindowTitle(window: PGLFWwindow): PChar; virtual;
     function glfwExtensionSupported(const extension: pchar): integer; virtual;
     function glfwGetProcAddress(const procname: pchar): TGLFWGLProc; virtual;
     function glfwVulkanSupported(): integer; virtual;
-    function glfwGetRequiredInstanceExtensions(out Count: uint32): PPChar; virtual;
+    function glfwGetRequiredInstanceExtensions(var Count: uint32): ppchar; virtual;
     {$IFDEF VK_VERSION_1_0}
 function glfwGetInstanceProcAddress(instance: VkInstance; const procname: PChar): TGLFWVKProc; virtual;
 function glfwGetPhysicalDevicePresentationSupport(instance: VkInstance; device: VkPhysicalDevice; queuefamily: Cardinal): Integer; virtual;
@@ -922,78 +1219,226 @@ end;
 
 procedure TGLFW.bindEntry;
 begin
-  if FHandle = NilHandle then
-    raise Exception.Create('Impossibile caricare la libreria GLFW');
+  if FHandle = 0 then
+    raise Exception.Create('GLFW: Libreria non caricata');
 
-  // Core
+  // ===================================================================
+  // CORE
+  //  Inizializzazione, versione, errori
+  // ===================================================================
   Bind(FGLFWInit, 'glfwInit');
   Bind(FGLFWTerminate, 'glfwTerminate');
+  Bind(FGLFWInitHint, 'glfwInitHint', False);                    // da 3.3
+  Bind(FGLFWDefaultWindowHints, 'glfwDefaultWindowHints');
+  Bind(FGLFWGetVersion, 'glfwGetVersion');
   Bind(FGLFWGetVersionString, 'glfwGetVersionString');
+  Bind(FGLFWGetError, 'glfwGetError');
+  Bind(FGLFWSetErrorCallback, 'glfwSetErrorCallback');
 
-  // Window
+  // ===================================================================
+  // WINDOW HINTS
+  // ===================================================================
+  Bind(FGLFWWindowHint, 'glfwWindowHint');
+  Bind(FGLFWWindowHintString, 'glfwWindowHintString', False);    // da 3.3
+
+  // ===================================================================
+  // WINDOW - Creazione e gestione base
+  // ===================================================================
   Bind(FGLFWCreateWindow, 'glfwCreateWindow');
   Bind(FGLFWDestroyWindow, 'glfwDestroyWindow');
   Bind(FGLFWWindowShouldClose, 'glfwWindowShouldClose');
   Bind(FGLFWSetWindowShouldClose, 'glfwSetWindowShouldClose');
+
+  // ===================================================================
+  // WINDOW - Titolo e icona
+  // ===================================================================
+  Bind(FGLFWSetWindowTitle, 'glfwSetWindowTitle');
+  Bind(FGLFWSetWindowIcon, 'glfwSetWindowIcon');
+
+  // ===================================================================
+  // WINDOW - Posizione e dimensione
+  // ===================================================================
+  Bind(FGLFWGetWindowPos, 'glfwGetWindowPos');
+  Bind(FGLFWSetWindowPos, 'glfwSetWindowPos');
+  Bind(FGLFWGetWindowSize, 'glfwGetWindowSize');
+  Bind(FGLFWSetWindowSize, 'glfwSetWindowSize');
+  Bind(FGLFWSetWindowSizeLimits, 'glfwSetWindowSizeLimits', False);     // da 3.3
+  Bind(FGLFWSetWindowAspectRatio, 'glfwSetWindowAspectRatio', False);  // da 3.3
+
+  // ===================================================================
+  // WINDOW - Framebuffer e scaling
+  // ===================================================================
+  Bind(FGLFWGetFramebufferSize, 'glfwGetFramebufferSize');
+  Bind(FGLFWGetWindowFrameSize, 'glfwGetWindowFrameSize', False);      // da 3.3
+  Bind(FGLFWGetWindowContentScale, 'glfwGetWindowContentScale', False); // da 3.3
+  Bind(FGLFWGetWindowOpacity, 'glfwGetWindowOpacity', False);          // da 3.3
+  Bind(FGLFWSetWindowOpacity, 'glfwSetWindowOpacity', False);          // da 3.3
+
+  // ===================================================================
+  // WINDOW - Stato
+  // ===================================================================
+  Bind(FGLFWIconifyWindow, 'glfwIconifyWindow');
+  Bind(FGLFWRestoreWindow, 'glfwRestoreWindow');
+  Bind(FGLFWMaximizeWindow, 'glfwMaximizeWindow');
+  Bind(FGLFWShowWindow, 'glfwShowWindow');
+  Bind(FGLFWHideWindow, 'glfwHideWindow');
+  Bind(FGLFWFocusWindow, 'glfwFocusWindow');
+  Bind(FGLFWRequestWindowAttention, 'glfwRequestWindowAttention', False); // da 3.3
+  Bind(FGLFWGetWindowMonitor, 'glfwGetWindowMonitor');
+  Bind(FGLFWSetWindowMonitor, 'glfwSetWindowMonitor');
+
+  // ===================================================================
+  // WINDOW - Attributi
+  // ===================================================================
+  Bind(FGLFWGetWindowAttrib, 'glfwGetWindowAttrib');
+  Bind(FGLFWSetWindowAttrib, 'glfwSetWindowAttrib', False);            // da 3.3
+  Bind(FGLFWSetWindowUserPointer, 'glfwSetWindowUserPointer');
+  Bind(FGLFWGetWindowUserPointer, 'glfwGetWindowUserPointer');
+
+  // ===================================================================
+  // WINDOW - Callback
+  // ===================================================================
+  Bind(FGLFWSetWindowPosCallback, 'glfwSetWindowPosCallback');
+  Bind(FGLFWSetWindowSizeCallback, 'glfwSetWindowSizeCallback');
+  Bind(FGLFWSetWindowCloseCallback, 'glfwSetWindowCloseCallback');
+  Bind(FGLFWSetWindowRefreshCallback, 'glfwSetWindowRefreshCallback');
+  Bind(FGLFWSetWindowFocusCallback, 'glfwSetWindowFocusCallback');
+  Bind(FGLFWSetWindowIconifyCallback, 'glfwSetWindowIconifyCallback');
+  Bind(FGLFWSetWindowMaximizeCallback, 'glfwSetWindowMaximizeCallback');
+  Bind(FGLFWSetFramebufferSizeCallback, 'glfwSetFramebufferSizeCallback');
+  Bind(FGLFWSetWindowContentScaleCallback, 'glfwSetWindowContentScaleCallback', False); // da 3.3
+
+  // ===================================================================
+  // EVENTS
+  // ===================================================================
   Bind(FGLFWPollEvents, 'glfwPollEvents');
   Bind(FGLFWWaitEvents, 'glfwWaitEvents');
-  Bind(FGLFWSwapBuffers, 'glfwSwapBuffers');
-  Bind(FGLFWMakeContextCurrent, 'glfwMakeContextCurrent');
-  Bind(FGLFWGetCurrentContext, 'glfwGetCurrentContext');
-  Bind(FGLFWSwapInterval, 'glfwSwapInterval');
-  Bind(FGLFWWindowHint, 'glfwWindowHint');
-  Bind(FGLFWGetFramebufferSize, 'glfwGetFramebufferSize');
+  Bind(FGLFWWaitEventsTimeout, 'glfwWaitEventsTimeout', False);       // da 3.2
+  Bind(FGLFWPostEmptyEvent, 'glfwPostEmptyEvent', False);              // da 3.2
 
-  // Input
+  // ===================================================================
+  // INPUT - Modalità e stato
+  // ===================================================================
+  Bind(FGLFWGetInputMode, 'glfwGetInputMode');
+  Bind(FGLFWSetInputMode, 'glfwSetInputMode');
+  Bind(FGLFWRawMouseMotionSupported, 'glfwRawMouseMotionSupported', False); // da 3.3
+
+  // ===================================================================
+  // INPUT - Tastiera e mouse
+  // ===================================================================
   Bind(FGLFWGetKey, 'glfwGetKey');
   Bind(FGLFWGetMouseButton, 'glfwGetMouseButton');
   Bind(FGLFWGetCursorPos, 'glfwGetCursorPos');
   Bind(FGLFWSetCursorPos, 'glfwSetCursorPos');
+  Bind(FGLFWGetKeyName, 'glfwGetKeyName', False);                      // da 3.2
+  Bind(FGLFWGetKeyScancode, 'glfwGetKeyScancode', False);                // da 3.3
 
-  // Callbacks
-  Bind(FGLFWSetKeyCallback, 'glfwSetKeyCallback');
-  Bind(FGLFWSetMouseButtonCallback, 'glfwSetMouseButtonCallback');
-  Bind(FGLFWSetCursorPosCallback, 'glfwSetCursorPosCallback');
-  Bind(FGLFWSetScrollCallback, 'glfwSetScrollCallback');
-  Bind(FGLFWSetCharCallback, 'glfwSetCharCallback');
-  Bind(FGLFWSetDropCallback, 'glfwSetDropCallback');
-
-  // Vulkan
-  Bind(FGLFWVulkanSupported, 'glfwVulkanSupported');
-  Bind(FGLFWGetRequiredInstanceExtensions, 'glfwGetRequiredInstanceExtensions');
-  Bind(FGLFWCreateWindowSurface, 'glfwCreateWindowSurface');
-
-  // 3.4+ funzioni
-  Bind(FGLFWSetWindowAttrib, 'glfwSetWindowAttrib');
-  Bind(FGLFWGetWindowAttrib, 'glfwGetWindowAttrib');
-  Bind(FGLFWSetWindowAspectRatio, 'glfwSetWindowAspectRatio');
-  Bind(FGLFWSetWindowSizeLimits, 'glfwSetWindowSizeLimits');
-
-  // Timer
-  Bind(FGLFWGetTime, 'glfwGetTime');
-  Bind(FGLFWSetTime, 'glfwSetTime');
-
-  // Clipboard
-  Bind(FGLFWSetClipboardString, 'glfwSetClipboardString');
-  Bind(FGLFWGetClipboardString, 'glfwGetClipboardString');
-
-  // Cursor (3.1+)
-  Bind(FGLFWCreateStandardCursor, 'glfwCreateStandardCursor');
+  // ===================================================================
+  // CURSOR
+  // ===================================================================
   Bind(FGLFWCreateCursor, 'glfwCreateCursor');
+  Bind(FGLFWCreateStandardCursor, 'glfwCreateStandardCursor');
   Bind(FGLFWDestroyCursor, 'glfwDestroyCursor');
   Bind(FGLFWSetCursor, 'glfwSetCursor');
 
-  // Joystick/Gamepad
+  // ===================================================================
+  // INPUT CALLBACKS
+  // ===================================================================
+  Bind(FGLFWSetKeyCallback, 'glfwSetKeyCallback');
+  Bind(FGLFWSetCharCallback, 'glfwSetCharCallback');
+  Bind(FGLFWSetCharModsCallback, 'glfwSetCharModsCallback', False);   // da 3.1, rimossa in 3.4
+  Bind(FGLFWSetMouseButtonCallback, 'glfwSetMouseButtonCallback');
+  Bind(FGLFWSetCursorPosCallback, 'glfwSetCursorPosCallback');
+  Bind(FGLFWSetCursorEnterCallback, 'glfwSetCursorEnterCallback');
+  Bind(FGLFWSetScrollCallback, 'glfwSetScrollCallback');
+  Bind(FGLFWSetDropCallback, 'glfwSetDropCallback');
+
+  // ===================================================================
+  // MONITOR
+  // ===================================================================
+  Bind(FGLFWGetMonitors, 'glfwGetMonitors');
+  Bind(FGLFWGetPrimaryMonitor, 'glfwGetPrimaryMonitor');
+  Bind(FGLFWGetMonitorPos, 'glfwGetMonitorPos');
+  Bind(FGLFWGetMonitorWorkarea, 'glfwGetMonitorWorkarea', False);      // da 3.3
+  Bind(FGLFWGetMonitorPhysicalSize, 'glfwGetMonitorPhysicalSize');
+  Bind(FGLFWGetMonitorContentScale, 'glfwGetMonitorContentScale', False); // da 3.3
+  Bind(FGLFWGetMonitorName, 'glfwGetMonitorName');
+  Bind(FGLFWSetMonitorUserPointer, 'glfwSetMonitorUserPointer');
+  Bind(FGLFWGetMonitorUserPointer, 'glfwGetMonitorUserPointer');
+  Bind(FGLFWSetMonitorCallback, 'glfwSetMonitorCallback');
+  Bind(FGLFWGetVideoModes, 'glfwGetVideoModes');
+  Bind(FGLFWGetVideoMode, 'glfwGetVideoMode');
+  Bind(FGLFWSetGamma, 'glfwSetGamma');
+  Bind(FGLFWGetGammaRamp, 'glfwGetGammaRamp');
+  Bind(FGLFWSetGammaRamp, 'glfwSetGammaRamp');
+
+  // ===================================================================
+  // JOYSTICK / GAMEPAD
+  // ===================================================================
   Bind(FGLFWJoystickPresent, 'glfwJoystickPresent');
   Bind(FGLFWGetJoystickAxes, 'glfwGetJoystickAxes');
   Bind(FGLFWGetJoystickButtons, 'glfwGetJoystickButtons');
   Bind(FGLFWGetJoystickHats, 'glfwGetJoystickHats');
   Bind(FGLFWGetJoystickName, 'glfwGetJoystickName');
+  Bind(FGLFWGetJoystickGUID, 'glfwGetJoystickGUID', False);            // da 3.3
+  Bind(FGLFWSetJoystickUserPointer, 'glfwSetJoystickUserPointer');
+  Bind(FGLFWGetJoystickUserPointer, 'glfwGetJoystickUserPointer');
+  Bind(FGLFWJoystickIsGamepad, 'glfwJoystickIsGamepad');
+  Bind(FGLFWSetJoystickCallback, 'glfwSetJoystickCallback');
+  Bind(FGLFWUpdateGamepadMappings, 'glfwUpdateGamepadMappings');
+  Bind(FGLFWGetGamepadName, 'glfwGetGamepadName');
   Bind(FGLFWGetGamepadState, 'glfwGetGamepadState');
 
-  // OpenGL proc
-  Bind(FGLFWGetProcAddress, 'glfwGetProcAddress');
+  // ===================================================================
+  // CLIPBOARD
+  // ===================================================================
+  Bind(FGLFWSetClipboardString, 'glfwSetClipboardString');
+  Bind(FGLFWGetClipboardString, 'glfwGetClipboardString');
+
+  // ===================================================================
+  // TIMER
+  // ===================================================================
+  Bind(FGLFWGetTime, 'glfwGetTime');
+  Bind(FGLFWSetTime, 'glfwSetTime');
+  Bind(FGLFWGetTimerValue, 'glfwGetTimerValue', False);                // da 3.2
+  Bind(FGLFWGetTimerFrequency, 'glfwGetTimerFrequency', False);        // da 3.2
+
+  // ===================================================================
+  // CONTEXT
+  // ===================================================================
+  Bind(FGLFWMakeContextCurrent, 'glfwMakeContextCurrent');
+  Bind(FGLFWGetCurrentContext, 'glfwGetCurrentContext');
+  Bind(FGLFWSwapBuffers, 'glfwSwapBuffers');
+  Bind(FGLFWSwapInterval, 'glfwSwapInterval');
+
+  // ===================================================================
+  // EXTENSIONS
+  // ===================================================================
   Bind(FGLFWExtensionSupported, 'glfwExtensionSupported');
+  Bind(FGLFWGetProcAddress, 'glfwGetProcAddress');
+
+  // ===================================================================
+  // VULKAN
+  // ===================================================================
+  Bind(FGLFWVulkanSupported, 'glfwVulkanSupported');
+  Bind(FGLFWGetRequiredInstanceExtensions, 'glfwGetRequiredInstanceExtensions');
+
+  {$IFDEF VK_VERSION_1_0}
+  Bind(FGLFWGetInstanceProcAddress, 'glfwGetInstanceProcAddress', False);
+  Bind(FGLFWGetPhysicalDevicePresentationSupport, 'glfwGetPhysicalDevicePresentationSupport', False);
+  Bind(FGLFWCreateWindowSurface, 'glfwCreateWindowSurface', False);
+  {$ENDIF}
+
+  // ===================================================================
+  // GLFW 3.4+ (solo se definito GLFW3_LASTEST)
+  // ===================================================================
+  {$IFDEF GLFW3_LASTEST}
+  Bind(FGLFWInitAllocator, 'glfwInitAllocator', False);
+  Bind(FGLFWInitVulkanLoader, 'glfwInitVulkanLoader', False);
+  Bind(FGLFWGetPlatform, 'glfwGetPlatform', False);
+  Bind(FGLFWPlatformSupported, 'glfwPlatformSupported', False);
+  Bind(FGLFWGetWindowTitle, 'glfwGetWindowTitle', False);
+  {$ENDIF}
 end;
 
 procedure TGLFW.LoadLibrary;
@@ -1020,582 +1465,1003 @@ end;
 
 function TGLFW.glfwInit(): integer;
 begin
-
+  if Assigned(FGLFWInit) then
+    Result := FGLFWInit()
+  else
+    raise ENullPointerException.Create('glfwInit');
 end;
 
 procedure TGLFW.glfwTerminate();
 begin
-
+  if Assigned(FGLFWTerminate) then
+    FGLFWTerminate()
+  else
+    raise ENullPointerException.Create('glfwTerminate');
 end;
 
 procedure TGLFW.glfwInitHint(hint, Value: integer);
 begin
-
+  if Assigned(FGLFWInitHint) then
+    FGLFWInitHint(hint, Value)
+  else
+    raise ENullPointerException.Create('glfwInitHint');
 end;
 
 procedure TGLFW.glfwGetVersion(major, minor, rev: PInteger);
 begin
-
+  if Assigned(FGLFWGetVersion) then
+    FGLFWGetVersion(major, minor, rev)
+  else
+    raise ENullPointerException.Create('glfwGetVersion');
 end;
 
 function TGLFW.glfwGetVersionString(): pchar;
 begin
-
+  if Assigned(FGLFWGetVersionString) then
+    Result := FGLFWGetVersionString()
+  else
+    raise ENullPointerException.Create('glfwGetVersionString');
 end;
 
-function TGLFW.glfwError(const description: PPChar): integer;
+function TGLFW.glfwGetError(description: pchar): integer;
 begin
-
+  if Assigned(FGLFWGetError) then
+    Result := FGLFWGetError(description)
+  else
+    raise ENullPointerException.Create('glfwGetError');
 end;
 
-function TGLFW.glfwSetErrorCallback(cbfun: TGLFWerrorfun): TGLFWerrorfun;
+function TGLFW.glfwSetErrorCallback(callback: TGLFWerrorfun): TGLFWerrorfun;
 begin
-
-end;
-
-function TGLFW.glfwGetMonitors(out Count: integer): PPGLFWmonitor;
-begin
-
-end;
-
-function TGLFW.glfwGetPrimaryMonitor(): PGLFWmonitor;
-begin
-
-end;
-
-procedure TGLFW.glfwGetMonitorPos(monitor: PGLFWmonitor; xpos, ypos: PInteger);
-begin
-
-end;
-
-procedure TGLFW.glfwGetMonitorWorkarea(monitor: PGLFWmonitor; xpos, ypos, Width, Height: PInteger);
-begin
-
-end;
-
-procedure TGLFW.glfwGetMonitorPhysicalSize(monitor: PGLFWmonitor; widthMM, heightMM: PInteger);
-begin
-
-end;
-
-procedure TGLFW.glfwGetMonitorContentScale(monitor: PGLFWmonitor; xscale, yscale: PSingle);
-begin
-
-end;
-
-function TGLFW.glfwGetMonitorName(monitor: PGLFWmonitor): pchar;
-begin
-
-end;
-
-procedure TGLFW.glfwSetMonitorUserPointer(monitor: PGLFWmonitor; user: Pointer);
-begin
-
-end;
-
-procedure TGLFW.glfwGetMonitorUserPointer(monitor: PGLFWmonitor);
-begin
-
-end;
-
-function TGLFW.glfwSetMonitorCallback(cbfun: TGLFWmonitorfun): TGLFWmonitorfun;
-begin
-
-end;
-
-function TGLFW.glfwGetVideoModes(monitor: PGLFWmonitor; out Count: PInteger): PGLFWvidmode;
-begin
-
-end;
-
-function TGLFW.glfwGetVideoMode(monitor: PGLFWmonitor): PGLFWvidmode;
-begin
-
-end;
-
-procedure TGLFW.glfwSetGamma(monitor: PGLFWmonitor; gamma: single);
-begin
-
-end;
-
-function TGLFW.glfwGetGammaRamp(monitor: PGLFWmonitor): PGLFWgammaramp;
-begin
-
-end;
-
-procedure TGLFW.glfwSetGammaRamp(monitor: PGLFWmonitor; const ramp: PGLFWgammaramp);
-begin
-
+  if Assigned(FGLFWSetErrorCallback) then
+    Result := FGLFWSetErrorCallback(callback)
+  else
+    raise ENullPointerException.Create('glfwSetErrorCallback');
 end;
 
 procedure TGLFW.glfwDefaultWindowHints();
 begin
-
+  if Assigned(FGLFWDefaultWindowHints) then
+    FGLFWDefaultWindowHints()
+  else
+    raise ENullPointerException.Create('glfwDefaultWindowHints');
 end;
 
 procedure TGLFW.glfwWindowHint(hint, Value: integer);
 begin
-
+  if Assigned(FGLFWWindowHint) then
+    FGLFWWindowHint(hint, Value)
+  else
+    raise ENullPointerException.Create('glfwWindowHint');
 end;
 
 procedure TGLFW.glfwWindowHintString(hint: integer; Value: pchar);
 begin
-
+  if Assigned(FGLFWWindowHintString) then
+    FGLFWWindowHintString(hint, Value)
+  else
+    raise ENullPointerException.Create('glfwWindowHintString');
 end;
 
-function TGLFW.glfwCreateWindow(Width, Height: integer; const title: pchar; monitor: PGLFWmonitor; share: PGLFWwindow): PGLFWwindow;
+function TGLFW.glfwCreateWindow(Width, Height: integer; const title: pchar; monitor, share: PGLFWwindow): PGLFWwindow;
 begin
-
+  if Assigned(FGLFWCreateWindow) then
+    Result := FGLFWCreateWindow(Width, Height, title, monitor, share)
+  else
+    raise ENullPointerException.Create('glfwCreateWindow');
 end;
 
 procedure TGLFW.glfwDestroyWindow(window: PGLFWwindow);
 begin
-
+  if Assigned(FGLFWDestroyWindow) then
+    FGLFWDestroyWindow(window)
+  else
+    raise ENullPointerException.Create('glfwDestroyWindow');
 end;
 
 function TGLFW.glfwWindowShouldClose(window: PGLFWwindow): integer;
 begin
-
+  if Assigned(FGLFWWindowShouldClose) then
+    Result := FGLFWWindowShouldClose(window)
+  else
+    raise ENullPointerException.Create('glfwWindowShouldClose');
 end;
 
 procedure TGLFW.glfwSetWindowShouldClose(window: PGLFWwindow; Value: integer);
 begin
-
+  if Assigned(FGLFWSetWindowShouldClose) then
+    FGLFWSetWindowShouldClose(window, Value)
+  else
+    raise ENullPointerException.Create('glfwSetWindowShouldClose');
 end;
 
 procedure TGLFW.glfwSetWindowTitle(window: PGLFWwindow; const title: pchar);
 begin
-
+  if Assigned(FGLFWSetWindowTitle) then
+    FGLFWSetWindowTitle(window, title)
+  else
+    raise ENullPointerException.Create('glfwSetWindowTitle');
 end;
 
 procedure TGLFW.glfwSetWindowIcon(window: PGLFWwindow; Count: integer; const images: PGLFWimage);
 begin
-
+  if Assigned(FGLFWSetWindowIcon) then
+    FGLFWSetWindowIcon(window, Count, images)
+  else
+    raise ENullPointerException.Create('glfwSetWindowIcon');
 end;
 
 procedure TGLFW.glfwGetWindowPos(window: PGLFWwindow; xpos, ypos: PInteger);
 begin
-
+  if Assigned(FGLFWGetWindowPos) then
+    FGLFWGetWindowPos(window, xpos, ypos)
+  else
+    raise ENullPointerException.Create('glfwGetWindowPos');
 end;
 
 procedure TGLFW.glfwSetWindowPos(window: PGLFWwindow; xpos, ypos: integer);
 begin
-
+  if Assigned(FGLFWSetWindowPos) then
+    FGLFWSetWindowPos(window, xpos, ypos)
+  else
+    raise ENullPointerException.Create('glfwSetWindowPos');
 end;
 
 procedure TGLFW.glfwGetWindowSize(window: PGLFWwindow; Width, Height: PInteger);
 begin
-
-end;
-
-procedure TGLFW.glfwSetWindowSizeLimits(window: PGLFWwindow; minwidth, minheight, maxwidth, maxheight: integer);
-begin
-
-end;
-
-procedure TGLFW.glfwSetWindowAspectRatio(window: PGLFWwindow; numer, denom: integer);
-begin
-
+  if Assigned(FGLFWGetWindowSize) then
+    FGLFWGetWindowSize(window, Width, Height)
+  else
+    raise ENullPointerException.Create('glfwGetWindowSize');
 end;
 
 procedure TGLFW.glfwSetWindowSize(window: PGLFWwindow; Width, Height: integer);
 begin
+  if Assigned(FGLFWSetWindowSize) then
+    FGLFWSetWindowSize(window, Width, Height)
+  else
+    raise ENullPointerException.Create('glfwSetWindowSize');
+end;
 
+procedure TGLFW.glfwSetWindowSizeLimits(window: PGLFWwindow; minwidth, minheight, maxwidth, maxheight: integer);
+begin
+  if Assigned(FGLFWSetWindowSizeLimits) then
+    FGLFWSetWindowSizeLimits(window, minwidth, minheight, maxwidth, maxheight)
+  else
+    raise ENullPointerException.Create('glfwSetWindowSizeLimits');
+end;
+
+procedure TGLFW.glfwSetWindowAspectRatio(window: PGLFWwindow; numer, denom: integer);
+begin
+  if Assigned(FGLFWSetWindowAspectRatio) then
+    FGLFWSetWindowAspectRatio(window, numer, denom)
+  else
+    raise ENullPointerException.Create('glfwSetWindowAspectRatio');
 end;
 
 procedure TGLFW.glfwGetFramebufferSize(window: PGLFWwindow; Width, Height: PInteger);
 begin
-
+  if Assigned(FGLFWGetFramebufferSize) then
+    FGLFWGetFramebufferSize(window, Width, Height)
+  else
+    raise ENullPointerException.Create('glfwGetFramebufferSize');
 end;
 
 procedure TGLFW.glfwGetWindowFrameSize(window: PGLFWwindow; left, top, right, bottom: PInteger);
 begin
-
+  if Assigned(FGLFWGetWindowFrameSize) then
+    FGLFWGetWindowFrameSize(window, left, top, right, bottom)
+  else
+    raise ENullPointerException.Create('glfwGetWindowFrameSize');
 end;
 
 procedure TGLFW.glfwGetWindowContentScale(window: PGLFWwindow; xscale, yscale: PSingle);
 begin
-
+  if Assigned(FGLFWGetWindowContentScale) then
+    FGLFWGetWindowContentScale(window, xscale, yscale)
+  else
+    raise ENullPointerException.Create('glfwGetWindowContentScale');
 end;
 
 function TGLFW.glfwGetWindowOpacity(window: PGLFWwindow): single;
 begin
-
+  if Assigned(FGLFWGetWindowOpacity) then
+    Result := FGLFWGetWindowOpacity(window)
+  else
+    raise ENullPointerException.Create('glfwGetWindowOpacity');
 end;
 
 procedure TGLFW.glfwSetWindowOpacity(window: PGLFWwindow; opacity: single);
 begin
-
+  if Assigned(FGLFWSetWindowOpacity) then
+    FGLFWSetWindowOpacity(window, opacity)
+  else
+    raise ENullPointerException.Create('glfwSetWindowOpacity');
 end;
 
 procedure TGLFW.glfwIconifyWindow(window: PGLFWwindow);
 begin
-
+  if Assigned(FGLFWIconifyWindow) then
+    FGLFWIconifyWindow(window)
+  else
+    raise ENullPointerException.Create('glfwIconifyWindow');
 end;
 
 procedure TGLFW.glfwRestoreWindow(window: PGLFWwindow);
 begin
-
+  if Assigned(FGLFWRestoreWindow) then
+    FGLFWRestoreWindow(window)
+  else
+    raise ENullPointerException.Create('glfwRestoreWindow');
 end;
 
 procedure TGLFW.glfwMaximizeWindow(window: PGLFWwindow);
 begin
-
+  if Assigned(FGLFWMaximizeWindow) then
+    FGLFWMaximizeWindow(window)
+  else
+    raise ENullPointerException.Create('glfwMaximizeWindow');
 end;
 
 procedure TGLFW.glfwShowWindow(window: PGLFWwindow);
 begin
-
+  if Assigned(FGLFWShowWindow) then
+    FGLFWShowWindow(window)
+  else
+    raise ENullPointerException.Create('glfwShowWindow');
 end;
 
 procedure TGLFW.glfwHideWindow(window: PGLFWwindow);
 begin
-
+  if Assigned(FGLFWHideWindow) then
+    FGLFWHideWindow(window)
+  else
+    raise ENullPointerException.Create('glfwHideWindow');
 end;
 
 procedure TGLFW.glfwFocusWindow(window: PGLFWwindow);
 begin
-
+  if Assigned(FGLFWFocusWindow) then
+    FGLFWFocusWindow(window)
+  else
+    raise ENullPointerException.Create('glfwFocusWindow');
 end;
 
 procedure TGLFW.glfwRequestWindowAttention(window: PGLFWwindow);
 begin
-
+  if Assigned(FGLFWRequestWindowAttention) then
+    FGLFWRequestWindowAttention(window)
+  else
+    raise ENullPointerException.Create('glfwRequestWindowAttention');
 end;
 
 function TGLFW.glfwGetWindowMonitor(window: PGLFWwindow): PGLFWmonitor;
 begin
-
+  if Assigned(FGLFWGetWindowMonitor) then
+    Result := FGLFWGetWindowMonitor(window)
+  else
+    raise ENullPointerException.Create('glfwGetWindowMonitor');
 end;
 
 procedure TGLFW.glfwSetWindowMonitor(window: PGLFWwindow; monitor: PGLFWmonitor; xpos, ypos, Width, Height, refreshRate: integer);
 begin
-
+  if Assigned(FGLFWSetWindowMonitor) then
+    FGLFWSetWindowMonitor(window, monitor, xpos, ypos, Width, Height, refreshRate)
+  else
+    raise ENullPointerException.Create('glfwSetWindowMonitor');
 end;
 
 function TGLFW.glfwGetWindowAttrib(window: PGLFWwindow; attrib: integer): integer;
 begin
-
+  if Assigned(FGLFWGetWindowAttrib) then
+    Result := FGLFWGetWindowAttrib(window, attrib)
+  else
+    raise ENullPointerException.Create('glfwGetWindowAttrib');
 end;
 
 procedure TGLFW.glfwSetWindowAttrib(window: PGLFWwindow; attrib, Value: integer);
 begin
-
+  if Assigned(FGLFWSetWindowAttrib) then
+    FGLFWSetWindowAttrib(window, attrib, Value)
+  else
+    raise ENullPointerException.Create('glfwSetWindowAttrib');
 end;
 
 procedure TGLFW.glfwSetWindowUserPointer(window: PGLFWwindow; userpointer: Pointer);
 begin
-
+  if Assigned(FGLFWSetWindowUserPointer) then
+    FGLFWSetWindowUserPointer(window, userpointer)
+  else
+    raise ENullPointerException.Create('glfwSetWindowUserPointer');
 end;
 
 function TGLFW.glfwGetWindowUserPointer(window: PGLFWwindow): Pointer;
 begin
-
+  if Assigned(FGLFWGetWindowUserPointer) then
+    Result := FGLFWGetWindowUserPointer(window)
+  else
+    raise ENullPointerException.Create('glfwGetWindowUserPointer');
 end;
 
 function TGLFW.glfwSetWindowPosCallback(window: PGLFWwindow; callback: TGLFWwindowposfun): TGLFWwindowposfun;
 begin
-
+  if Assigned(FGLFWSetWindowPosCallback) then
+    Result := FGLFWSetWindowPosCallback(window, callback)
+  else
+    raise ENullPointerException.Create('glfwSetWindowPosCallback');
 end;
 
 function TGLFW.glfwSetWindowSizeCallback(window: PGLFWwindow; callback: TGLFWwindowsizefun): TGLFWwindowsizefun;
 begin
-
+  if Assigned(FGLFWSetWindowSizeCallback) then
+    Result := FGLFWSetWindowSizeCallback(window, callback)
+  else
+    raise ENullPointerException.Create('glfwSetWindowSizeCallback');
 end;
 
 function TGLFW.glfwSetWindowCloseCallback(window: PGLFWwindow; callback: TGLFWwindowclosefun): TGLFWwindowclosefun;
 begin
-
+  if Assigned(FGLFWSetWindowCloseCallback) then
+    Result := FGLFWSetWindowCloseCallback(window, callback)
+  else
+    raise ENullPointerException.Create('glfwSetWindowCloseCallback');
 end;
 
 function TGLFW.glfwSetWindowRefreshCallback(window: PGLFWwindow; callback: TGLFWwindowrefreshfun): TGLFWwindowrefreshfun;
 begin
-
+  if Assigned(FGLFWSetWindowRefreshCallback) then
+    Result := FGLFWSetWindowRefreshCallback(window, callback)
+  else
+    raise ENullPointerException.Create('glfwSetWindowRefreshCallback');
 end;
 
 function TGLFW.glfwSetWindowFocusCallback(window: PGLFWwindow; callback: TGLFWwindowfocusfun): TGLFWwindowfocusfun;
 begin
-
+  if Assigned(FGLFWSetWindowFocusCallback) then
+    Result := FGLFWSetWindowFocusCallback(window, callback)
+  else
+    raise ENullPointerException.Create('glfwSetWindowFocusCallback');
 end;
 
 function TGLFW.glfwSetWindowIconifyCallback(window: PGLFWwindow; callback: TGLFWwindowiconifyfun): TGLFWwindowiconifyfun;
 begin
-
+  if Assigned(FGLFWSetWindowIconifyCallback) then
+    Result := FGLFWSetWindowIconifyCallback(window, callback)
+  else
+    raise ENullPointerException.Create('glfwSetWindowIconifyCallback');
 end;
 
 function TGLFW.glfwSetWindowMaximizeCallback(window: PGLFWwindow; callback: TGLFWwindowmaximizefun): TGLFWwindowmaximizefun;
 begin
-
+  if Assigned(FGLFWSetWindowMaximizeCallback) then
+    Result := FGLFWSetWindowMaximizeCallback(window, callback)
+  else
+    raise ENullPointerException.Create('glfwSetWindowMaximizeCallback');
 end;
 
 function TGLFW.glfwSetFramebufferSizeCallback(window: PGLFWwindow; callback: TGLFWframebuffersizefun): TGLFWframebuffersizefun;
 begin
-
+  if Assigned(FGLFWSetFramebufferSizeCallback) then
+    Result := FGLFWSetFramebufferSizeCallback(window, callback)
+  else
+    raise ENullPointerException.Create('glfwSetFramebufferSizeCallback');
 end;
 
 function TGLFW.glfwSetWindowContentScaleCallback(window: PGLFWwindow; callback: TGLFWwindowcontentscalefun): TGLFWwindowcontentscalefun;
 begin
-
+  if Assigned(FGLFWSetWindowContentScaleCallback) then
+    Result := FGLFWSetWindowContentScaleCallback(window, callback)
+  else
+    raise ENullPointerException.Create('glfwSetWindowContentScaleCallback');
 end;
 
 procedure TGLFW.glfwPollEvents();
 begin
-
+  if Assigned(FGLFWPollEvents) then
+    FGLFWPollEvents()
+  else
+    raise ENullPointerException.Create('glfwPollEvents');
 end;
 
 procedure TGLFW.glfwWaitEvents();
 begin
-
+  if Assigned(FGLFWWaitEvents) then
+    FGLFWWaitEvents()
+  else
+    raise ENullPointerException.Create('glfwWaitEvents');
 end;
 
 procedure TGLFW.glfwWaitEventsTimeout(timeout: double);
 begin
-
+  if Assigned(FGLFWWaitEventsTimeout) then
+    FGLFWWaitEventsTimeout(timeout)
+  else
+    raise ENullPointerException.Create('glfwWaitEventsTimeout');
 end;
 
 procedure TGLFW.glfwPostEmptyEvent();
 begin
-
+  if Assigned(FGLFWPostEmptyEvent) then
+    FGLFWPostEmptyEvent()
+  else
+    raise ENullPointerException.Create('glfwPostEmptyEvent');
 end;
 
 function TGLFW.glfwGetInputMode(window: PGLFWwindow; mode: integer): integer;
 begin
-
+  if Assigned(FGLFWGetInputMode) then
+    Result := FGLFWGetInputMode(window, mode)
+  else
+    raise ENullPointerException.Create('glfwGetInputMode');
 end;
 
 procedure TGLFW.glfwSetInputMode(window: PGLFWwindow; mode, Value: integer);
 begin
-
+  if Assigned(FGLFWSetInputMode) then
+    FGLFWSetInputMode(window, mode, Value)
+  else
+    raise ENullPointerException.Create('glfwSetInputMode');
 end;
 
 function TGLFW.glfwRawMouseMotionSupported(): integer;
 begin
-
+  if Assigned(FGLFWRawMouseMotionSupported) then
+    Result := FGLFWRawMouseMotionSupported()
+  else
+    raise ENullPointerException.Create('glfwRawMouseMotionSupported');
 end;
 
 function TGLFW.glfwGetKeyName(key, scancode: integer): pchar;
 begin
-
+  if Assigned(FGLFWGetKeyName) then
+    Result := FGLFWGetKeyName(key, scancode)
+  else
+    raise ENullPointerException.Create('glfwGetKeyName');
 end;
 
 function TGLFW.glfwGetKeyScancode(key: integer): integer;
 begin
-
+  if Assigned(FGLFWGetKeyScancode) then
+    Result := FGLFWGetKeyScancode(key)
+  else
+    raise ENullPointerException.Create('glfwGetKeyScancode');
 end;
 
 function TGLFW.glfwGetKey(window: PGLFWwindow; key: integer): integer;
 begin
-
+  if Assigned(FGLFWGetKey) then
+    Result := FGLFWGetKey(window, key)
+  else
+    raise ENullPointerException.Create('glfwGetKey');
 end;
 
 function TGLFW.glfwGetMouseButton(window: PGLFWwindow; button: integer): integer;
 begin
-
+  if Assigned(FGLFWGetMouseButton) then
+    Result := FGLFWGetMouseButton(window, button)
+  else
+    raise ENullPointerException.Create('glfwGetMouseButton');
 end;
 
 procedure TGLFW.glfwGetCursorPos(window: PGLFWwindow; xpos, ypos: PDouble);
 begin
-
+  if Assigned(FGLFWGetCursorPos) then
+    FGLFWGetCursorPos(window, xpos, ypos)
+  else
+    raise ENullPointerException.Create('glfwGetCursorPos');
 end;
 
 procedure TGLFW.glfwSetCursorPos(window: PGLFWwindow; xpos, ypos: double);
 begin
-
+  if Assigned(FGLFWSetCursorPos) then
+    FGLFWSetCursorPos(window, xpos, ypos)
+  else
+    raise ENullPointerException.Create('glfwSetCursorPos');
 end;
 
 function TGLFW.glfwCreateCursor(const image: PGLFWimage; xhot, yhot: integer): PGLFWcursor;
 begin
-
+  if Assigned(FGLFWCreateCursor) then
+    Result := FGLFWCreateCursor(image, xhot, yhot)
+  else
+    raise ENullPointerException.Create('glfwCreateCursor');
 end;
 
 function TGLFW.glfwCreateStandardCursor(shape: integer): PGLFWcursor;
 begin
-
+  if Assigned(FGLFWCreateStandardCursor) then
+    Result := FGLFWCreateStandardCursor(shape)
+  else
+    raise ENullPointerException.Create('glfwCreateStandardCursor');
 end;
 
 procedure TGLFW.glfwDestroyCursor(cursor: PGLFWcursor);
 begin
-
+  if Assigned(FGLFWDestroyCursor) then
+    FGLFWDestroyCursor(cursor)
+  else
+    raise ENullPointerException.Create('glfwDestroyCursor');
 end;
 
 procedure TGLFW.glfwSetCursor(window: PGLFWwindow; cursor: PGLFWcursor);
 begin
-
+  if Assigned(FGLFWSetCursor) then
+    FGLFWSetCursor(window, cursor)
+  else
+    raise ENullPointerException.Create('glfwSetCursor');
 end;
 
 function TGLFW.glfwSetKeyCallback(window: PGLFWwindow; callback: TGLFWkeyfun): TGLFWkeyfun;
 begin
-
+  if Assigned(FGLFWSetKeyCallback) then
+    Result := FGLFWSetKeyCallback(window, callback)
+  else
+    raise ENullPointerException.Create('glfwSetKeyCallback');
 end;
 
 function TGLFW.glfwSetCharCallback(window: PGLFWwindow; callback: TGLFWcharfun): TGLFWcharfun;
 begin
-
+  if Assigned(FGLFWSetCharCallback) then
+    Result := FGLFWSetCharCallback(window, callback)
+  else
+    raise ENullPointerException.Create('glfwSetCharCallback');
 end;
 
 function TGLFW.glfwSetCharModsCallback(window: PGLFWwindow; callback: TGLFWcharmodsfun): TGLFWcharmodsfun;
 begin
-
+  if Assigned(FGLFWSetCharModsCallback) then
+    Result := FGLFWSetCharModsCallback(window, callback)
+  else
+    raise ENullPointerException.Create('glfwSetCharModsCallback');
 end;
 
 function TGLFW.glfwSetMouseButtonCallback(window: PGLFWwindow; callback: TGLFWmousebuttonfun): TGLFWmousebuttonfun;
 begin
-
+  if Assigned(FGLFWSetMouseButtonCallback) then
+    Result := FGLFWSetMouseButtonCallback(window, callback)
+  else
+    raise ENullPointerException.Create('glfwSetMouseButtonCallback');
 end;
 
 function TGLFW.glfwSetCursorPosCallback(window: PGLFWwindow; callback: TGLFWcursorposfun): TGLFWcursorposfun;
 begin
-
+  if Assigned(FGLFWSetCursorPosCallback) then
+    Result := FGLFWSetCursorPosCallback(window, callback)
+  else
+    raise ENullPointerException.Create('glfwSetCursorPosCallback');
 end;
 
 function TGLFW.glfwSetCursorEnterCallback(window: PGLFWwindow; callback: TGLFWcursorenterfun): TGLFWcursorenterfun;
 begin
-
+  if Assigned(FGLFWSetCursorEnterCallback) then
+    Result := FGLFWSetCursorEnterCallback(window, callback)
+  else
+    raise ENullPointerException.Create('glfwSetCursorEnterCallback');
 end;
 
 function TGLFW.glfwSetScrollCallback(window: PGLFWwindow; callback: TGLFWscrollfun): TGLFWscrollfun;
 begin
-
+  if Assigned(FGLFWSetScrollCallback) then
+    Result := FGLFWSetScrollCallback(window, callback)
+  else
+    raise ENullPointerException.Create('glfwSetScrollCallback');
 end;
 
 function TGLFW.glfwSetDropCallback(window: PGLFWwindow; callback: TGLFWdropfun): TGLFWdropfun;
 begin
-
+  if Assigned(FGLFWSetDropCallback) then
+    Result := FGLFWSetDropCallback(window, callback)
+  else
+    raise ENullPointerException.Create('glfwSetDropCallback');
 end;
 
-function TGLFW.glfwJoystickPresent(jId: integer): integer;
+function TGLFW.glfwJoystickPresent(jid: integer): integer;
 begin
-
+  if Assigned(FGLFWJoystickPresent) then
+    Result := FGLFWJoystickPresent(jid)
+  else
+    raise ENullPointerException.Create('glfwJoystickPresent');
 end;
 
-function TGLFW.glfwGetJoystickAxes(jId: integer; Count: PInteger): PSingle;
+function TGLFW.glfwGetJoystickAxes(jid: integer; Count: PInteger): PSingle;
 begin
-
+  if Assigned(FGLFWGetJoystickAxes) then
+    Result := FGLFWGetJoystickAxes(jid, Count)
+  else
+    raise ENullPointerException.Create('glfwGetJoystickAxes');
 end;
 
-function TGLFW.glfwGetJoystickButtons(jId: integer; Count: PInteger): pbyte;
+function TGLFW.glfwGetJoystickButtons(jid: integer; Count: PInteger): pbyte;
 begin
-
+  if Assigned(FGLFWGetJoystickButtons) then
+    Result := FGLFWGetJoystickButtons(jid, Count)
+  else
+    raise ENullPointerException.Create('glfwGetJoystickButtons');
 end;
 
-function TGLFW.glfwGetJoystickHats(jId: integer; Count: PInteger): pbyte;
+function TGLFW.glfwGetJoystickHats(jid: integer; Count: PInteger): pbyte;
 begin
-
+  if Assigned(FGLFWGetJoystickHats) then
+    Result := FGLFWGetJoystickHats(jid, Count)
+  else
+    raise ENullPointerException.Create('glfwGetJoystickHats');
 end;
 
-function TGLFW.glfwGetJoystickName(jId: integer): pchar;
+function TGLFW.glfwGetJoystickName(jid: integer): pchar;
 begin
-
+  if Assigned(FGLFWGetJoystickName) then
+    Result := FGLFWGetJoystickName(jid)
+  else
+    raise ENullPointerException.Create('glfwGetJoystickName');
 end;
 
-function TGLFW.glfwGetJoystickGUID(jId: integer): pchar;
+function TGLFW.glfwGetJoystickGUID(jid: integer): pchar;
 begin
-
+  if Assigned(FGLFWGetJoystickGUID) then
+    Result := FGLFWGetJoystickGUID(jid)
+  else
+    raise ENullPointerException.Create('glfwGetJoystickGUID');
 end;
 
-procedure TGLFW.glfwSetJoystickUserPointer(jId: integer; userPointer: Pointer);
+procedure TGLFW.glfwSetJoystickUserPointer(jid: integer; userpointer: Pointer);
 begin
-
+  if Assigned(FGLFWSetJoystickUserPointer) then
+    FGLFWSetJoystickUserPointer(jid, userpointer)
+  else
+    raise ENullPointerException.Create('glfwSetJoystickUserPointer');
 end;
 
-function TGLFW.glfwGetJoystickUserPointer(jId: integer): Pointer;
+function TGLFW.glfwGetJoystickUserPointer(jid: integer): Pointer;
 begin
-
+  if Assigned(FGLFWGetJoystickUserPointer) then
+    Result := FGLFWGetJoystickUserPointer(jid)
+  else
+    raise ENullPointerException.Create('glfwGetJoystickUserPointer');
 end;
 
-function TGLFW.glfwJoystickIsGamepad(jId: integer): integer;
+function TGLFW.glfwJoystickIsGamepad(jid: integer): integer;
 begin
-
+  if Assigned(FGLFWJoystickIsGamepad) then
+    Result := FGLFWJoystickIsGamepad(jid)
+  else
+    raise ENullPointerException.Create('glfwJoystickIsGamepad');
 end;
 
 function TGLFW.glfwSetJoystickCallback(callback: TGLFWjoystickfun): TGLFWjoystickfun;
 begin
-
+  if Assigned(FGLFWSetJoystickCallback) then
+    Result := FGLFWSetJoystickCallback(callback)
+  else
+    raise ENullPointerException.Create('glfwSetJoystickCallback');
 end;
 
-function TGLFW.glfwUpdateGamepadMappings(const string_: pchar): integer;
+function TGLFW.glfwUpdateGamepadMappings(const str: pchar): integer;
 begin
-
+  if Assigned(FGLFWUpdateGamepadMappings) then
+    Result := FGLFWUpdateGamepadMappings(str)
+  else
+    raise ENullPointerException.Create('glfwUpdateGamepadMappings');
 end;
 
-function TGLFW.glfwGetGamepadName(jId: integer): pchar;
+function TGLFW.glfwGetGamepadName(jid: integer): pchar;
 begin
-
+  if Assigned(FGLFWGetGamepadName) then
+    Result := FGLFWGetGamepadName(jid)
+  else
+    raise ENullPointerException.Create('glfwGetGamepadName');
 end;
 
-function TGLFW.glfwGetGamepadState(jId: integer; state: PGLFWgamepadstate): integer;
+function TGLFW.glfwGetGamepadState(jid: integer; state: PGLFWgamepadstate): integer;
 begin
-
+  if Assigned(FGLFWGetGamepadState) then
+    Result := FGLFWGetGamepadState(jid, state)
+  else
+    raise ENullPointerException.Create('glfwGetGamepadState');
 end;
 
-procedure TGLFW.glfwSetClipboardString(window: PGLFWwindow; const Text: pchar);
+procedure TGLFW.glfwSetClipboardString(window: PGLFWwindow; const str: pchar);
 begin
-
+  if Assigned(FGLFWSetClipboardString) then
+    FGLFWSetClipboardString(window, str)
+  else
+    raise ENullPointerException.Create('glfwSetClipboardString');
 end;
 
 function TGLFW.glfwGetClipboardString(window: PGLFWwindow): pchar;
 begin
-
+  if Assigned(FGLFWGetClipboardString) then
+    Result := FGLFWGetClipboardString(window)
+  else
+    raise ENullPointerException.Create('glfwGetClipboardString');
 end;
 
 function TGLFW.glfwGetTime(): double;
 begin
-
+  if Assigned(FGLFWGetTime) then
+    Result := FGLFWGetTime()
+  else
+    raise ENullPointerException.Create('glfwGetTime');
 end;
 
 procedure TGLFW.glfwSetTime(time: double);
 begin
-
+  if Assigned(FGLFWSetTime) then
+    FGLFWSetTime(time)
+  else
+    raise ENullPointerException.Create('glfwSetTime');
 end;
 
 function TGLFW.glfwGetTimerValue(): uint64;
 begin
-
+  if Assigned(FGLFWGetTimerValue) then
+    Result := FGLFWGetTimerValue()
+  else
+    raise ENullPointerException.Create('glfwGetTimerValue');
 end;
 
 function TGLFW.glfwGetTimerFrequency(): uint64;
 begin
-
+  if Assigned(FGLFWGetTimerFrequency) then
+    Result := FGLFWGetTimerFrequency()
+  else
+    raise ENullPointerException.Create('glfwGetTimerFrequency');
 end;
 
 procedure TGLFW.glfwMakeContextCurrent(window: PGLFWwindow);
 begin
-
+  if Assigned(FGLFWMakeContextCurrent) then
+    FGLFWMakeContextCurrent(window)
+  else
+    raise ENullPointerException.Create('glfwMakeContextCurrent');
 end;
 
 function TGLFW.glfwGetCurrentContext(): PGLFWwindow;
 begin
-
+  if Assigned(FGLFWGetCurrentContext) then
+    Result := FGLFWGetCurrentContext()
+  else
+    raise ENullPointerException.Create('glfwGetCurrentContext');
 end;
 
 procedure TGLFW.glfwSwapBuffers(window: PGLFWwindow);
 begin
-
+  if Assigned(FGLFWSwapBuffers) then
+    FGLFWSwapBuffers(window)
+  else
+    raise ENullPointerException.Create('glfwSwapBuffers');
 end;
 
 procedure TGLFW.glfwSwapInterval(interval: integer);
 begin
-
+  if Assigned(FGLFWSwapInterval) then
+    FGLFWSwapInterval(interval)
+  else
+    raise ENullPointerException.Create('glfwSwapInterval');
 end;
 
 function TGLFW.glfwExtensionSupported(const extension: pchar): integer;
 begin
-
+  if Assigned(FGLFWExtensionSupported) then
+    Result := FGLFWExtensionSupported(extension)
+  else
+    raise ENullPointerException.Create('glfwExtensionSupported');
 end;
 
 function TGLFW.glfwGetProcAddress(const procname: pchar): TGLFWGLProc;
 begin
-
+  if Assigned(FGLFWGetProcAddress) then
+    Result := FGLFWGetProcAddress(procname)
+  else
+    raise ENullPointerException.Create('glfwGetProcAddress');
 end;
 
 function TGLFW.glfwVulkanSupported(): integer;
 begin
-
+  if Assigned(FGLFWVulkanSupported) then
+    Result := FGLFWVulkanSupported()
+  else
+    raise ENullPointerException.Create('glfwVulkanSupported');
 end;
 
-function TGLFW.glfwGetRequiredInstanceExtensions(out Count: uint32): PPChar;
+function TGLFW.glfwGetRequiredInstanceExtensions(var Count: cardinal): ppchar;
 begin
+  if Assigned(FGLFWGetRequiredInstanceExtensions) then
+    Result := FGLFWGetRequiredInstanceExtensions(Count)
+  else
+    raise ENullPointerException.Create('glfwGetRequiredInstanceExtensions');
+end;
 
+{$IFDEF VK_VERSION_1_0}
+function TGLFW.glfwGetInstanceProcAddress(instance: VkInstance; const procname: pchar): TGLFWVKProc;
+begin
+  if Assigned(FGLFWGetInstanceProcAddress) then
+    Result := FGLFWGetInstanceProcAddress(instance, procname)
+  else
+    raise ENullPointerException.Create('glfwGetInstanceProcAddress');
+end;
+
+function TGLFW.glfwGetPhysicalDevicePresentationSupport(instance: VkInstance; device: VkPhysicalDevice; queuefamily: Cardinal): Integer;
+begin
+  if Assigned(FGLFWGetPhysicalDevicePresentationSupport) then
+    Result := FGLFWGetPhysicalDevicePresentationSupport(instance, device, queuefamily)
+  else
+    raise ENullPointerException.Create('glfwGetPhysicalDevicePresentationSupport');
+end;
+
+function TGLFW.glfwCreateWindowSurface(instance: VkInstance; window: PGLFWwindow;
+  const allocator: PVkAllocationCallbacks; surface: PVkSurfaceKHR): TVkResult;
+begin
+  if Assigned(FGLFWCreateWindowSurface) then
+    Result := FGLFWCreateWindowSurface(instance, window, allocator, surface)
+  else
+    raise ENullPointerException.Create('glfwCreateWindowSurface');
+end;
+{$ENDIF}
+
+{$IFDEF GLFW3_LASTEST}
+procedure TGLFW.glfwInitAllocator(allocator: PGLFWallocator);
+begin
+  if Assigned(FGLFWInitAllocator) then
+    FGLFWInitAllocator(allocator)
+  else
+    raise ENullPointerException.Create('glfwInitAllocator');
+end;
+
+procedure TGLFW.glfwInitVulkanLoader(loader: TGLFWVKProc);
+begin
+  if Assigned(FGLFWInitVulkanLoader) then
+    FGLFWInitVulkanLoader(loader)
+  else
+    raise ENullPointerException.Create('glfwInitVulkanLoader');
+end;
+
+function TGLFW.glfwGetPlatform(): Integer;
+begin
+  if Assigned(FGLFWGetPlatform) then
+    Result := FGLFWGetPlatform()
+  else
+    raise ENullPointerException.Create('glfwGetPlatform');
+end;
+
+function TGLFW.glfwPlatformSupported(platform: Integer): Integer;
+begin
+  if Assigned(FGLFWPlatformSupported) then
+    Result := FGLFWPlatformSupported(platform)
+  else
+    raise ENullPointerException.Create('glfwPlatformSupported');
+end;
+
+function TGLFW.glfwGetWindowTitle(window: PGLFWwindow): pchar;
+begin
+  if Assigned(FGLFWGetWindowTitle) then
+    Result := FGLFWGetWindowTitle(window)
+  else
+    raise ENullPointerException.Create('glfwGetWindowTitle');
+end;
+{$ENDIF}
+
+// ===================================================================
+// MONITOR - IMPLEMENTAZIONI MANCANTI
+// ===================================================================
+
+function TGLFW.glfwGetMonitors(out Count: integer): PPGLFWmonitor;
+begin
+  if Assigned(FGLFWGetMonitors) then
+    Result := FGLFWGetMonitors(@Count)
+  else
+    raise ENullPointerException.Create('glfwGetMonitors');
+end;
+
+function TGLFW.glfwGetPrimaryMonitor(): PGLFWmonitor;
+begin
+  if Assigned(FGLFWGetPrimaryMonitor) then
+    Result := FGLFWGetPrimaryMonitor()
+  else
+    raise ENullPointerException.Create('glfwGetPrimaryMonitor');
+end;
+
+procedure TGLFW.glfwGetMonitorPos(monitor: PGLFWmonitor; xpos, ypos: PInteger);
+begin
+  if Assigned(FGLFWGetMonitorPos) then
+    FGLFWGetMonitorPos(monitor, xpos, ypos)
+  else
+    raise ENullPointerException.Create('glfwGetMonitorPos');
+end;
+
+procedure TGLFW.glfwGetMonitorWorkarea(monitor: PGLFWmonitor; xpos, ypos, Width, Height: PInteger);
+begin
+  if Assigned(FGLFWGetMonitorWorkarea) then
+    FGLFWGetMonitorWorkarea(monitor, xpos, ypos, Width, Height)
+  else
+    raise ENullPointerException.Create('glfwGetMonitorWorkarea');
+end;
+
+procedure TGLFW.glfwGetMonitorPhysicalSize(monitor: PGLFWmonitor; widthMM, heightMM: PInteger);
+begin
+  if Assigned(FGLFWGetMonitorPhysicalSize) then
+    FGLFWGetMonitorPhysicalSize(monitor, widthMM, heightMM)
+  else
+    raise ENullPointerException.Create('glfwGetMonitorPhysicalSize');
+end;
+
+procedure TGLFW.glfwGetMonitorContentScale(monitor: PGLFWmonitor; xscale, yscale: PSingle);
+begin
+  if Assigned(FGLFWGetMonitorContentScale) then
+    FGLFWGetMonitorContentScale(monitor, xscale, yscale)
+  else
+    raise ENullPointerException.Create('glfwGetMonitorContentScale');
+end;
+
+function TGLFW.glfwGetMonitorName(monitor: PGLFWmonitor): pchar;
+begin
+  if Assigned(FGLFWGetMonitorName) then
+    Result := FGLFWGetMonitorName(monitor)
+  else
+    raise ENullPointerException.Create('glfwGetMonitorName');
+end;
+
+procedure TGLFW.glfwSetMonitorUserPointer(monitor: PGLFWmonitor; user: Pointer);
+begin
+  if Assigned(FGLFWSetMonitorUserPointer) then
+    FGLFWSetMonitorUserPointer(monitor, user)
+  else
+    raise ENullPointerException.Create('glfwSetMonitorUserPointer');
+end;
+
+function TGLFW.glfwGetMonitorUserPointer(monitor: PGLFWmonitor): Pointer;
+begin
+  if Assigned(FGLFWGetMonitorUserPointer) then
+    Result := FGLFWGetMonitorUserPointer(monitor)
+  else
+    raise ENullPointerException.Create('glfwGetMonitorUserPointer');
+end;
+
+function TGLFW.glfwSetMonitorCallback(callback: TGLFWmonitorfun): TGLFWmonitorfun;
+begin
+  if Assigned(FGLFWSetMonitorCallback) then
+    Result := FGLFWSetMonitorCallback(callback)
+  else
+    raise ENullPointerException.Create('glfwSetMonitorCallback');
+end;
+
+function TGLFW.glfwGetVideoModes(monitor: PGLFWmonitor; var Count: integer): PGLFWvidmode;
+begin
+  if Assigned(FGLFWGetVideoModes) then
+    Result := FGLFWGetVideoModes(monitor, Count)
+  else
+    raise ENullPointerException.Create('glfwGetVideoModes');
+end;
+
+function TGLFW.glfwGetVideoMode(monitor: PGLFWmonitor): PGLFWvidmode;
+begin
+  if Assigned(FGLFWGetVideoMode) then
+    Result := FGLFWGetVideoMode(monitor)
+  else
+    raise ENullPointerException.Create('glfwGetVideoMode');
+end;
+
+procedure TGLFW.glfwSetGamma(monitor: PGLFWmonitor; gamma: single);
+begin
+  if Assigned(FGLFWSetGamma) then
+    FGLFWSetGamma(monitor, gamma)
+  else
+    raise ENullPointerException.Create('glfwSetGamma');
+end;
+
+function TGLFW.glfwGetGammaRamp(monitor: PGLFWmonitor): PGLFWgammaramp;
+begin
+  if Assigned(FGLFWGetGammaRamp) then
+    Result := FGLFWGetGammaRamp(monitor)
+  else
+    raise ENullPointerException.Create('glfwGetGammaRamp');
+end;
+
+procedure TGLFW.glfwSetGammaRamp(monitor: PGLFWmonitor; const ramp: PGLFWgammaramp);
+begin
+  if Assigned(FGLFWSetGammaRamp) then
+    FGLFWSetGammaRamp(monitor, ramp)
+  else
+    raise ENullPointerException.Create('glfwSetGammaRamp');
 end;
 
 initialization

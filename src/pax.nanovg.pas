@@ -663,10 +663,10 @@ function nvgCreateFontAtIndex(ctx: TNVContext; const Name, filename: pchar; font
 
 // Creates font by loading it from the specified memory chunk.
 // Returns handle to the font.
-function nvgCreateFontMem(ctx: TNVContext; const Name: pchar; Data: pbyte; ndata, freeData: int32): int32;
+function nvgCreateFontMem(ctx: TNVContext; const Name: pchar; Data: TBytes; ndata, freeData: int32): int32;
 
 // fontIndex specifies which font face to load from a .ttf/.ttc file.
-function nvgCreateFontMemAtIndex(ctx: TNVContext; Name: pchar; Data: pbyte; ndata, freeData: int32; fontIndex: int32): int32;
+function nvgCreateFontMemAtIndex(ctx: TNVContext; Name: pchar; Data: TBytes; ndata, freeData: int32; fontIndex: int32): int32;
 
 // Finds a loaded font of specified name, and returns handle to it, or -1 if the font is not found.
 function nvgFindFont(ctx: TNVContext; const Name: pchar): int32;
@@ -1409,6 +1409,7 @@ var
   state: TNVGState;
 begin
   state := nvg__getState(ctx);
+  if state = nil then exit;
   nvg__setPaintColor(state.fill, nvgRGBA(255, 255, 255, 255));
   nvg__setPaintColor(state.stroke, nvgRGBA(0, 0, 0, 255));
   state.compositeOperation := nvg__compositeOperationState(NVG_SOURCE_OVER);
@@ -3496,12 +3497,12 @@ begin
   Result := fonsAddFont(ctx.fs, Name, filename, fontIndex);
 end;
 
-function nvgCreateFontMem(ctx: TNVContext; const Name: pchar; Data: pbyte; ndata, freeData: int32): int32;
+function nvgCreateFontMem(ctx: TNVContext; const Name: pchar; Data: TBytes; ndata, freeData: int32): int32;
 begin
   Result := fonsAddFontMem(ctx.fs, Name, Data, ndata, freeData, 0);
 end;
 
-function nvgCreateFontMemAtIndex(ctx: TNVContext; Name: pchar; Data: pbyte; ndata, freeData: int32; fontIndex: int32): int32;
+function nvgCreateFontMemAtIndex(ctx: TNVContext; Name: pchar; Data: TBytes; ndata, freeData: int32; fontIndex: int32): int32;
 begin
   Result := fonsAddFontMem(ctx.fs, Name, Data, ndata, freeData, fontIndex);
 end;

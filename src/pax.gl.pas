@@ -2319,15 +2319,20 @@ type
 
   IOpenGL = IOpenGL46;
 
-var
-  OpenGL: IOpenGL = nil;
 
 function GetOpenGL: IOpenGL;
 
 implementation
 
 uses
+  {$IfDef WINDOWS}
+  Windows,
+  {$EndIf}
   dynlibs;
+
+var
+  singleton: IOpenGL = nil;
+
 
 type
   { TOpenGLBase }
@@ -2335,8 +2340,20 @@ type
   TOpenGLBase = class(TInterfacedObject)
   protected
     FHandle: TLibHandle;
+    {$IFDEF WINDOWS}
+
+  FTempWindow: HWND;
+  FTempDC: HDC;
+  FTempRC: HGLRC;
+    FWGLCreateContextAttribsARB : function(hDC: HDC; hShareContext: HGLRC; attribList: PInteger): HGLRC; stdcall;
+    FWGLGetProcAddress: function (ProcName: LPCSTR): Pointer;
+    {$EndIf}
   private
     function LoadProc(Name: ansistring): {$ifdef cpui8086}FarPointer{$else}Pointer{$endif};
+    {$IfDef Windows}
+    procedure CreateTempCoreContext;
+    procedure DestroyTempContext;
+    {$EndIf}
   protected
     procedure Bind(var FuncPtr: Pointer; const Name: ansistring; Mandatory: boolean = False);
   protected
@@ -2347,7 +2364,7 @@ type
     procedure LoadLibrary;
     procedure unLoadLibrary;
   public
-
+    destructor Destroy; override;
   end;
 
   { TOpenGL_1_0 }
@@ -4737,26 +4754,148 @@ function GetOpenGL: IOpenGL;
 var
   Base: TOpenGL_4_6;
 begin
-  if not assigned(OpenGL) then
+  if not assigned(singleton) then
   begin
     base := TOpenGL_4_6.Create;
     base.LoadLibrary;
     Base.bindEntry;
-    OpenGL := Base;
+    singleton := Base;
   end;
-  Result := OpenGL;
+  Result := singleton;
 end;
 
 
+var
+  debugFile: Text;
+
+function ifThen(test: boolean; ifTrue, ifFalse: string): string;
+begin
+  if (test) then exit(ifTrue)
+  else
+    exit(ifFalse);
+end;
+
 { TOpenGLBase }
 
-function TOpenGLBase.LoadProc(Name: ansistring): {$ifdef cpui8086}FarPointer{$else}Pointer{$endif};
+{$IfDef WINDOWS}
+procedure TOpenGLBase.CreateTempCoreContext;
+var
+  pfd: PIXELFORMATDESCRIPTOR;
+  PixelFormat: Integer;
+  attribs: array[0..8] of Integer;
+
+  TempLegacyRC :HGLRC;
 begin
-  Result := dynlibs.GetProcAddress(FHandle, Name);
-  if not assigned(Result) then
+  if FTempRC <> 0 then Exit; // già creato
+  // 1. Crea finestra invisibile 1x1
+  FTempWindow := CreateWindowA(
+    'STATIC', 'pax.gl temp', WS_POPUP or WS_DISABLED,
+    0, 0, 1, 1, 0, 0, GetModuleHandle(nil), nil);
+  FTempDC := GetDC(FTempWindow);
+
+  // 2. Pixel format base (compatibile con tutti)
+  FillChar(pfd, SizeOf(pfd), 0);
+  pfd.nSize := SizeOf(pfd);
+  pfd.nVersion := 1;
+  pfd.dwFlags := PFD_DRAW_TO_WINDOW or PFD_SUPPORT_OPENGL or PFD_DOUBLEBUFFER;
+  pfd.iPixelType := PFD_TYPE_RGBA;
+  pfd.cColorBits := 32;
+  pfd.cDepthBits := 24;
+  pfd.cStencilBits := 8;
+
+  PixelFormat := ChoosePixelFormat(FTempDC, @pfd);
+  if PixelFormat = 0 then raise Exception.Create('ChoosePixelFormat fallito');
+  SetPixelFormat(FTempDC, PixelFormat, @pfd);
+
+  // 3. Crea contesto legacy temporaneo (solo per caricare wglCreateContextAttribsARB)
+  TempLegacyRC := wglCreateContext(FTempDC);
+  wglMakeCurrent(fTempDC, TempLegacyRC);
+
+  // 4. Carica wglCreateContextAttribsARB tramite wglGetProcAddress
+  Pointer(FwglCreateContextAttribsARB) := FWGLGetProcAddress('wglCreateContextAttribsARB');
+  if not Assigned(FWGLCreateContextAttribsARB) then
   begin
-    Writeln(Name, ' not found');
+    wglMakeCurrent(0, 0);
+    wglDeleteContext(TempLegacyRC);
+    raise Exception.Create('wglCreateContextAttribsARB non supportato – driver troppo vecchio');
   end;
+
+  // 5. Distruggi contesto legacy
+  wglMakeCurrent(0, 0);
+  wglDeleteContext(TempLegacyRC);
+
+  // 6. Crea contesto singleton 4.6 Core Profile
+  FillChar(attribs, SizeOf(attribs), 0);
+  attribs[0] := $2091; // WGL_CONTEXT_MAJOR_VERSION_ARB
+  attribs[1] := 4;
+  attribs[2] := $2092; // WGL_CONTEXT_MINOR_VERSION_ARB
+  attribs[3] := 6;
+  attribs[4] := $9126; // WGL_CONTEXT_PROFILE_MASK_ARB
+  attribs[5] := $00000001; // WGL_CONTEXT_CORE_PROFILE_BIT_ARB
+  // attribs[6] := $2094; // WGL_CONTEXT_FLAGS_ARB
+  // attribs[7] := $00000002; // WGL_CONTEXT_DEBUG_BIT_ARB (opzionale)
+  // attribs[8] := 0;
+
+  FTempRC := FWGLCreateContextAttribsARB(FTempDC, 0, @attribs);
+  if FTempRC = 0 then
+  begin
+    // Fallback: prova 4.5, 4.3, 3.3
+    attribs[1] := 4; attribs[3] := 5; FTempRC := FwglCreateContextAttribsARB(FTempDC, 0, @attribs);
+    if FTempRC = 0 then begin attribs[1] := 4; attribs[3] := 3; FTempRC := FwglCreateContextAttribsARB(FTempDC, 0, @attribs); end;
+    if FTempRC = 0 then begin attribs[1] := 3; attribs[3] := 3; FTempRC := FwglCreateContextAttribsARB(FTempDC, 0, @attribs); end;
+  end;
+
+  if FTempRC = 0 then
+    raise Exception.Create('Impossibile creare contesto OpenGL 3.3+ Core');
+
+  // 7. Attiva il contesto core
+  wglMakeCurrent(FTempDC, FTempRC);
+
+  //Writeln('Contesto temporaneo OpenGL ', glGetString(GL_VERSION), ' creato con successo');
+end;
+
+procedure TOpenGLBase.DestroyTempContext;
+begin
+  if FTempRC <> 0 then
+  begin
+    wglMakeCurrent(0, 0);
+    wglDeleteContext(FTempRC);
+    FTempRC := 0;
+  end;
+  if FTempDC <> 0 then
+  begin
+    ReleaseDC(FTempWindow, FTempDC);
+    FTempDC := 0;
+  end;
+  if FTempWindow <> 0 then
+  begin
+    DestroyWindow(FTempWindow);
+    FTempWindow := 0;
+  end;
+end;
+{$EndIf}
+
+function TOpenGLBase.LoadProc(Name: ansistring): {$ifdef cpui8086}FarPointer{$else}Pointer{$endif};
+var
+  fileName: TFileName;
+begin
+  {$IfDef WINDOWS}
+  Result := FWGLGetProcAddress(PChar(Name));
+  if result = nil then
+    Result := dynlibs.GetProcAddress(FHandle, Name);
+  {$ELSE}
+  Result := dynlibs.GetProcAddress(FHandle, Name);
+  {$EndIf}
+
+  fileName := ExpandFileName(ParamStr(0)) + '.opengl.log';
+  AssignFile(debugFile, fileName);
+  if FileExists(fileName) then
+    Append(debugFile)
+  else
+    Rewrite(debugFile);
+  Writeln(debugFile, IfThen(assigned(Result), '     found:', ' not found:'), Name);
+  Flush(debugFile);
+  CloseFile(debugFile);
 end;
 
 procedure TOpenGLBase.Bind(var FuncPtr: Pointer; const Name: ansistring; Mandatory: boolean = False);
@@ -4769,7 +4908,11 @@ end;
 
 procedure TOpenGLBase.bindEntry;
 begin
-
+  {$IfDef WINDOWS}
+ Pointer(FWGLGetProcAddress) := dynlibs.GetProcAddress(FHandle, 'wglGetProcAddress');
+  Pointer(FWGLCreateContextAttribsARB) := dynlibs.GetProcAddress(FHandle, 'glCreateContextAttribsARB');
+  CreateTempCoreContext;
+  {$EndIf}
 end;
 
 procedure TOpenGLBase.LoadLibrary;
@@ -4780,6 +4923,15 @@ end;
 procedure TOpenGLBase.unLoadLibrary;
 begin
   dynlibs.UnloadLibrary(FHandle);
+end;
+
+destructor TOpenGLBase.Destroy;
+begin
+  unLoadLibrary;
+  {$IfDef WINDOWS}
+  DestroyTempContext;
+  {$EndIf}
+  inherited Destroy;
 end;
 
 function TOpenGLBase.SupportsVersion(Major, Minor: integer): boolean;
