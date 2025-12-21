@@ -42,13 +42,13 @@ var
     for i := 0 to 11 do
       images[i] := nvgCreateImage(vg, pansichar('images/image' + IntToStr(i + 1) + '.jpg'), 0);
 
-    fontIcons := nvgCreateFont(vg, 'icons', 'fonts/entypo.ttf');
-    fontNormal := nvgCreateFont(vg, 'sans', 'fonts/Roboto-Regular.ttf');
-    fontBold := nvgCreateFont(vg, 'sans-bold', 'fonts/Roboto-Bold.ttf');
-
-    if (fontIcons = -1) or (fontNormal = -1) or (fontBold = -1) then
+    //fontIcons := nvgCreateFont(vg, 'icons', 'fonts/entypo.ttf');
+    //fontNormal := nvgCreateFont(vg, 'sans', 'fonts/Roboto-Regular.ttf');
+    //fontBold := nvgCreateFont(vg, 'sans-bold', 'fonts/Roboto-Bold.ttf');
+    {
+    if (fontIcons = -1) or (fontNormal = -1) or (fontBold = -1)then
       Writeln('Errore: impossibile caricare i font!');
-
+      }
     checkBackEnd(vg.params);
   end;
 

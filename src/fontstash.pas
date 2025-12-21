@@ -168,7 +168,7 @@ type
     lut: array[0..FONS_HASH_LUT_SIZE - 1] of integer; // Lookup table
     fallbacks: array[0..FONS_MAX_FALLBACKS - 1] of integer; // Font di fallback
     nfallbacks: integer;        // Numero di fallback
-    Data: pbyte;                // Dati del font
+    Data: TBytes;                // Dati del font
     dataSize: integer;          // Dimensione dei dati
     freeData: byte;             // Flag per liberare i dati
     ascender: single;           // Ascendente normalizzato
@@ -215,7 +215,7 @@ procedure fonsGetAtlasSize(stash: PFONSContext; Width, Height: PInt32);
 function fonsExpandAtlas(stash: PFONSContext; Width, Height: int32): int32;
 function fonsResetAtlas(stash: PFONSContext; Width, Height: int32): int32;
 function fonsAddFont(stash: PFONSContext; Name, path: pchar; fontIndex: int32): int32;
-function fonsAddFontMem(stash: PFONSContext; Name: pchar; Data: pbyte; dataSize, freeData, fontIndex: int32): int32;
+function fonsAddFontMem(stash: PFONSContext; Name: pchar; Data: TBytes; dataSize, freeData, fontIndex: int32): int32;
 function fonsGetFontByName(stash: PFONSContext; Name: pchar): int32;
 function fonsAddFallbackFont(stash: PFONSContext; base, fallback: integer): integer;
 procedure fonsResetFallbackFont(stash: PFONSContext; base: integer);
@@ -359,7 +359,7 @@ begin
   Result := ftError = 0;
 end;
 
-function fons__tt_loadFont(context: PFONSContext; font: PFONSTTFontImpl; Data: pbyte; dataSize: int32; fontIndex: int32): boolean;
+function fons__tt_loadFont(context: PFONSContext; font: PFONSTTFontImpl; Data: TBytes; dataSize: int32; fontIndex: int32): boolean;
 var
   ftError: FT_Error;
 begin
@@ -916,7 +916,7 @@ begin
   if font^.glyphs <> nil then
     FreeMem(font^.glyphs);
   if (font^.freeData <> 0) and (font^.Data <> nil) then
-    FreeMem(font^.Data);
+    SetLength(font^.Data, 0);
   if font^.font.font <> nil then
     FT_Done_Face(font^.font.font);
   FreeMem(font);
@@ -961,21 +961,21 @@ var
   fp: file;
   dataSize: integer;
   readed: integer = 0;
-  Data: pbyte;
+  Data: TBytes;
 begin
   try
     AssignFile(fp, path);
     Reset(fp, 1);
     dataSize := FileSize(fp);
 
-    GetMem(Data, dataSize);
+    SetLength(Data, dataSize);
     try
-      BlockRead(fp, Data^, dataSize, readed);
+      BlockRead(fp, Data[0], dataSize, readed);
       if readed <> dataSize then
         raise EInOutError.Create('Errore nella lettura del file del font');
-      Result := fonsAddFontMem(stash, Name, Data, dataSize, 1, fontIndex);
+      Result := fonsAddFontMem(stash, Name,@ Data[0], dataSize, 1, fontIndex);
     finally
-      FreeMem(Data);
+      if assigned(Data) then SetLength(Data, 0);
       CloseFile(fp);
     end;
   except
@@ -985,7 +985,7 @@ begin
   end;
 end;
 
-function fonsAddFontMem(stash: PFONSContext; Name: pchar; Data: pbyte; dataSize, freeData, fontIndex: int32): int32;
+function fonsAddFontMem(stash: PFONSContext; Name: pchar; Data: TBytes; dataSize, freeData, fontIndex: int32): int32;
 var
   i, idx, ascent, descent, fh, lineGap: integer;
   font: PFONSFont;
@@ -1619,16 +1619,15 @@ begin
   iter^.prevGlyphIndex := -1;
   iter^.bitmapOption := bitmapOption;
 
-  Result := true;
+  Result := True;
 end;
 
-function fonsTextIterNext(stash: PFONSContext; iter: PFONSTextIter;
-  quad: PFONSQuad): boolean;
+function fonsTextIterNext(stash: PFONSContext; iter: PFONSTextIter; quad: PFONSQuad): boolean;
 var
   glyph: PFONSglyph;
   str: pchar;
 begin
-  result := false;
+  Result := False;
   str := iter^.Next;
   iter^.str := iter^.Next;
 
@@ -1655,7 +1654,7 @@ begin
     Break;
   end;
   iter^.Next := str;
-  Result := true;
+  Result := True;
 end;
 
 function fonsTextBounds(stash: PFONSContext; x, y: single; str, end_: pchar; bounds: PSingle): single;

@@ -2320,7 +2320,7 @@ type
   IOpenGL = IOpenGL46;
 
 
-function GetOpenGL: IOpenGL;
+function GetOpenGL: IOpenGL; inline;
 
 implementation
 

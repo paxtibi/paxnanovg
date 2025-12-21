@@ -10,7 +10,7 @@
         <MainUnitHasScaledStatement Value="False"/>
       </Flags>
       <SessionStorage Value="InProjectDir"/>
-      <Title Value="NanoVG DEV"/>
+      <Title Value="opengl_test"/>
       <UseAppBundle Value="False"/>
       <ResourceType Value="res"/>
     </General>
@@ -24,26 +24,13 @@
     <RunParams>
       <FormatVersion Value="2"/>
     </RunParams>
-    <RequiredPackages>
-      <Item>
-        <PackageName Value="paxutils_package"/>
-      </Item>
-    </RequiredPackages>
     <Units>
       <Unit>
-        <Filename Value="nanovgdev.lpr"/>
+        <Filename Value="opengl_test.lpr"/>
         <IsPartOfProject Value="True"/>
       </Unit>
       <Unit>
-        <Filename Value="..\src\nanovg.application.pas"/>
-        <IsPartOfProject Value="True"/>
-      </Unit>
-      <Unit>
-        <Filename Value="..\src\pax.glfw.pas"/>
-        <IsPartOfProject Value="True"/>
-      </Unit>
-      <Unit>
-        <Filename Value="..\src\pax.nvg.pas"/>
+        <Filename Value="..\src\pax.gl.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit>
     </Units>
@@ -52,33 +39,18 @@
     <Version Value="11"/>
     <PathDelim Value="\"/>
     <Target>
-      <Filename Value="..\bin\$(TargetCPU)-$(TargetOS)\nanovgdev"/>
+      <Filename Value="..\bin\$(TargetCPU)-$(TargetOS)\opengl_test"/>
     </Target>
     <SearchPaths>
       <IncludeFiles Value="$(ProjOutDir)"/>
       <OtherUnitFiles Value="..\src"/>
       <UnitOutputDirectory Value="..\lib\$(TargetCPU)-$(TargetOS)"/>
     </SearchPaths>
-    <CodeGeneration>
-      <Checks>
-        <IOChecks Value="True"/>
-        <OverflowChecks Value="True"/>
-        <StackChecks Value="True"/>
-      </Checks>
-    </CodeGeneration>
     <Linking>
       <Debugging>
         <DebugInfoType Value="dsDwarf3"/>
       </Debugging>
     </Linking>
-    <Other>
-      <ConfigFile>
-        <StopAfterErrCount Value="100"/>
-      </ConfigFile>
-      <CompilerMessages>
-        <IgnoredMessages idx5060="True" idx5057="True"/>
-      </CompilerMessages>
-    </Other>
   </CompilerOptions>
   <Debugging>
     <Exceptions>
@@ -92,8 +64,7 @@
         <Name Value="EFOpenError"/>
       </Item>
       <Item>
-        <Name Value="External: ACCESS VIOLATION"/>
-        <Enabled Value="False"/>
+        <Name Value="EInOutError"/>
       </Item>
     </Exceptions>
   </Debugging>

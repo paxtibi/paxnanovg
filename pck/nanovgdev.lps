@@ -8,84 +8,91 @@
       <Unit>
         <Filename Value="nanovgdev.lpr"/>
         <IsPartOfProject Value="True"/>
-        <EditorIndex Value="3"/>
-        <CursorPos X="4" Y="4"/>
+        <EditorIndex Value="2"/>
+        <TopLine Value="42"/>
+        <CursorPos X="5" Y="51"/>
         <UsageCount Value="200"/>
         <Loaded Value="True"/>
       </Unit>
       <Unit>
         <Filename Value="..\src\nanovg.application.pas"/>
         <IsPartOfProject Value="True"/>
-        <EditorIndex Value="2"/>
+        <EditorIndex Value="-1"/>
         <CursorPos Y="10"/>
-        <UsageCount Value="118"/>
-        <Loaded Value="True"/>
+        <UsageCount Value="345"/>
       </Unit>
       <Unit>
         <Filename Value="..\src\pax.glfw.pas"/>
         <IsPartOfProject Value="True"/>
+        <EditorIndex Value="8"/>
+        <TopLine Value="2445"/>
+        <CursorPos X="12" Y="2461"/>
+        <UsageCount Value="292"/>
+        <Loaded Value="True"/>
+      </Unit>
+      <Unit>
+        <Filename Value="..\src\pax.nvg.pas"/>
+        <IsPartOfProject Value="True"/>
         <EditorIndex Value="-1"/>
-        <UsageCount Value="65"/>
+        <TopLine Value="156"/>
+        <CursorPos X="62" Y="174"/>
+        <UsageCount Value="204"/>
       </Unit>
       <Unit>
         <Filename Value="..\src\fontstash.pas"/>
         <UnitName Value="FontStash"/>
-        <EditorIndex Value="-1"/>
-        <TopLine Value="103"/>
-        <CursorPos X="5" Y="123"/>
-        <UsageCount Value="87"/>
+        <EditorIndex Value="5"/>
+        <TopLine Value="205"/>
+        <CursorPos X="10" Y="218"/>
+        <UsageCount Value="100"/>
+        <Loaded Value="True"/>
       </Unit>
       <Unit>
         <Filename Value="..\src\pax.nanovg.pas"/>
-        <EditorIndex Value="4"/>
-        <TopLine Value="1029"/>
-        <CursorPos Y="1047"/>
+        <EditorIndex Value="1"/>
+        <TopLine Value="1079"/>
+        <CursorPos Y="1092"/>
         <UsageCount Value="112"/>
         <Loaded Value="True"/>
       </Unit>
       <Unit>
         <Filename Value="..\src\pax.nanovg.gl.pas"/>
-        <EditorIndex Value="1"/>
-        <TopLine Value="386"/>
-        <CursorPos Y="405"/>
+        <IsVisibleTab Value="True"/>
+        <EditorIndex Value="7"/>
+        <TopLine Value="478"/>
+        <CursorPos X="34" Y="489"/>
         <UsageCount Value="112"/>
         <Loaded Value="True"/>
       </Unit>
       <Unit>
         <Filename Value="..\src\stb_image.pas"/>
         <EditorIndex Value="-1"/>
-        <TopLine Value="5"/>
-        <CursorPos X="10" Y="16"/>
-        <UsageCount Value="88"/>
+        <TopLine Value="41"/>
+        <CursorPos X="43" Y="53"/>
+        <UsageCount Value="56"/>
       </Unit>
       <Unit>
         <Filename Value="D:\fpcupdeluxe\fpcsrc\rtl\objpas\math.pp"/>
         <UnitName Value="Math"/>
         <EditorIndex Value="-1"/>
-        <TopLine Value="3719"/>
-        <CursorPos X="10" Y="3731"/>
-        <UsageCount Value="57"/>
+        <TopLine Value="745"/>
+        <CursorPos X="11" Y="847"/>
+        <UsageCount Value="105"/>
       </Unit>
       <Unit>
         <Filename Value="D:\fpcupdeluxe\fpcsrc\packages\fcl-image\src\libfreetype.inc"/>
         <EditorIndex Value="-1"/>
         <TopLine Value="92"/>
         <CursorPos X="3" Y="110"/>
-        <UsageCount Value="89"/>
-      </Unit>
-      <Unit>
-        <Filename Value="D:\fpcupdeluxe\fpcsrc\rtl\inc\systemh.inc"/>
-        <EditorIndex Value="-1"/>
-        <TopLine Value="430"/>
-        <CursorPos X="3" Y="447"/>
-        <UsageCount Value="60"/>
+        <UsageCount Value="13"/>
       </Unit>
       <Unit>
         <Filename Value="..\originale\src\nanovg.c"/>
-        <EditorIndex Value="-1"/>
-        <TopLine Value="2706"/>
-        <CursorPos X="50" Y="2714"/>
-        <UsageCount Value="87"/>
+        <EditorIndex Value="4"/>
+        <TopLine Value="404"/>
+        <CursorPos X="12" Y="424"/>
+        <UsageCount Value="125"/>
+        <Loaded Value="True"/>
       </Unit>
       <Unit>
         <Filename Value="D:\fpcupdeluxe\fpcsrc\rtl\win64\classes.pp"/>
@@ -93,205 +100,174 @@
         <EditorIndex Value="-1"/>
         <TopLine Value="89"/>
         <CursorPos X="10" Y="112"/>
-        <UsageCount Value="87"/>
-      </Unit>
-      <Unit>
-        <Filename Value="D:\fpcupdeluxe\fpcsrc\rtl\objpas\classes\classes.inc"/>
-        <EditorIndex Value="-1"/>
-        <TopLine Value="2780"/>
-        <CursorPos X="10" Y="2792"/>
-        <UsageCount Value="71"/>
-      </Unit>
-      <Unit>
-        <Filename Value="D:\fpcupdeluxe\fpcsrc\packages\opengles\src\gles20.pas"/>
-        <EditorIndex Value="-1"/>
-        <TopLine Value="97"/>
-        <CursorPos X="40" Y="158"/>
-        <UsageCount Value="56"/>
-      </Unit>
-      <Unit>
-        <Filename Value="D:\fpcupdeluxe\fpcsrc\packages\opengl\src\gl.pp"/>
-        <UnitName Value="GL"/>
-        <EditorIndex Value="-1"/>
-        <TopLine Value="548"/>
-        <CursorPos X="76" Y="558"/>
-        <UsageCount Value="55"/>
+        <UsageCount Value="11"/>
       </Unit>
       <Unit>
         <Filename Value="..\src\pax.gl.pas"/>
-        <IsVisibleTab Value="True"/>
-        <CursorPos X="41" Y="15"/>
+        <TopLine Value="2324"/>
+        <CursorPos X="30" Y="2337"/>
         <UsageCount Value="103"/>
         <Loaded Value="True"/>
       </Unit>
       <Unit>
-        <Filename Value="..\..\paxutils\src\paxutils.pas"/>
-        <EditorIndex Value="-1"/>
-        <TopLine Value="51"/>
-        <CursorPos X="3" Y="34"/>
-        <UsageCount Value="60"/>
+        <Filename Value="D:\fpcupdeluxe\fpcsrc\rtl\objpas\sysutils\sysutilh.inc"/>
+        <EditorIndex Value="6"/>
+        <TopLine Value="91"/>
+        <CursorPos X="4" Y="104"/>
+        <UsageCount Value="100"/>
+        <Loaded Value="True"/>
       </Unit>
       <Unit>
-        <Filename Value="D:\fpcupdeluxe\fpcsrc\rtl\inc\dynlibs.pas"/>
+        <Filename Value="D:\fpcupdeluxe\fpcsrc\packages\fcl-pdf\src\fpfonttextmapping.pp"/>
+        <UnitName Value="FPFontTextMapping"/>
         <EditorIndex Value="-1"/>
-        <TopLine Value="18"/>
-        <CursorPos X="10" Y="35"/>
-        <UsageCount Value="11"/>
+        <TopLine Value="148"/>
+        <CursorPos X="24" Y="47"/>
+        <UsageCount Value="65"/>
       </Unit>
       <Unit>
-        <Filename Value="D:\fpcupdeluxe\fpcsrc\rtl\win\sysdlh.inc"/>
+        <Filename Value="D:\fpcupdeluxe\lazarus\components\freetype\easylazfreetype.pas"/>
+        <UnitName Value="EasyLazFreeType"/>
         <EditorIndex Value="-1"/>
-        <CursorPos X="3" Y="23"/>
-        <UsageCount Value="11"/>
+        <TopLine Value="286"/>
+        <UsageCount Value="65"/>
       </Unit>
       <Unit>
-        <Filename Value="D:\fpcupdeluxe\fpcsrc\rtl\inc\dynlibh.inc"/>
+        <Filename Value="D:\fpcupdeluxe\fpcsrc\rtl\objpas\sysutils\sysutils.inc"/>
         <EditorIndex Value="-1"/>
-        <TopLine Value="27"/>
-        <CursorPos X="3" Y="37"/>
-        <UsageCount Value="5"/>
+        <TopLine Value="890"/>
+        <CursorPos X="28" Y="933"/>
+        <UsageCount Value="49"/>
       </Unit>
       <Unit>
-        <Filename Value="D:\fpcupdeluxe\fpcsrc\rtl\inc\dynlib.inc"/>
-        <EditorIndex Value="-1"/>
-        <TopLine Value="2"/>
-        <CursorPos X="3" Y="19"/>
-        <UsageCount Value="5"/>
-      </Unit>
-      <Unit>
-        <Filename Value="D:\fpcupdeluxe\fpcsrc\rtl\win\dynlibs.inc"/>
-        <EditorIndex Value="-1"/>
-        <CursorPos X="11" Y="16"/>
-        <UsageCount Value="5"/>
-      </Unit>
-      <Unit>
-        <Filename Value="D:\fpcupdeluxe\fpcsrc\rtl\win\wininc\struct.inc"/>
-        <EditorIndex Value="-1"/>
-        <TopLine Value="1422"/>
-        <CursorPos X="6" Y="1439"/>
-        <UsageCount Value="10"/>
+        <Filename Value="..\originale\src\nanovg.h"/>
+        <EditorIndex Value="3"/>
+        <TopLine Value="145"/>
+        <CursorPos X="68" Y="21"/>
+        <UsageCount Value="105"/>
+        <Loaded Value="True"/>
       </Unit>
     </Units>
     <JumpHistory HistoryIndex="29">
       <Position>
-        <Filename Value="..\src\pax.nanovg.gl.pas"/>
-        <Caret Line="413" TopLine="397"/>
+        <Filename Value="nanovgdev.lpr"/>
+        <Caret Line="170" TopLine="147"/>
       </Position>
       <Position>
-        <Filename Value="..\src\pax.nanovg.gl.pas"/>
-        <Caret Line="414" TopLine="397"/>
+        <Filename Value="nanovgdev.lpr"/>
+        <Caret Line="171" TopLine="148"/>
       </Position>
       <Position>
-        <Filename Value="..\src\pax.nanovg.gl.pas"/>
-        <Caret Line="416" TopLine="397"/>
+        <Filename Value="nanovgdev.lpr"/>
+        <Caret Line="173" TopLine="150"/>
       </Position>
       <Position>
-        <Filename Value="..\src\pax.nanovg.gl.pas"/>
-        <Caret Line="417" TopLine="397"/>
+        <Filename Value="nanovgdev.lpr"/>
+        <Caret Line="174" TopLine="151"/>
       </Position>
       <Position>
-        <Filename Value="..\src\pax.nanovg.gl.pas"/>
-        <Caret Line="418" TopLine="397"/>
+        <Filename Value="nanovgdev.lpr"/>
+        <Caret Line="175" TopLine="152"/>
       </Position>
       <Position>
-        <Filename Value="..\src\pax.nanovg.gl.pas"/>
-        <Caret Line="420" TopLine="397"/>
+        <Filename Value="nanovgdev.lpr"/>
+        <Caret Line="177" TopLine="154"/>
       </Position>
       <Position>
-        <Filename Value="..\src\pax.nanovg.gl.pas"/>
-        <Caret Line="365" TopLine="348"/>
+        <Filename Value="nanovgdev.lpr"/>
+        <Caret Line="178" TopLine="155"/>
       </Position>
       <Position>
-        <Filename Value="..\src\pax.nanovg.gl.pas"/>
-        <Caret Line="366" TopLine="348"/>
+        <Filename Value="nanovgdev.lpr"/>
+        <Caret Line="179" TopLine="156"/>
       </Position>
       <Position>
-        <Filename Value="..\src\pax.nanovg.gl.pas"/>
-        <Caret Line="367" TopLine="348"/>
+        <Filename Value="nanovgdev.lpr"/>
+        <Caret Line="181" TopLine="158"/>
       </Position>
       <Position>
-        <Filename Value="..\src\pax.nanovg.gl.pas"/>
-        <Caret Line="368" TopLine="348"/>
+        <Filename Value="nanovgdev.lpr"/>
+        <Caret Line="182" TopLine="159"/>
       </Position>
       <Position>
-        <Filename Value="..\src\pax.nanovg.gl.pas"/>
-        <Caret Line="370" TopLine="348"/>
+        <Filename Value="nanovgdev.lpr"/>
+        <Caret Line="183" TopLine="160"/>
       </Position>
       <Position>
-        <Filename Value="..\src\pax.nanovg.gl.pas"/>
-        <Caret Line="371" Column="3" TopLine="348"/>
+        <Filename Value="nanovgdev.lpr"/>
+        <Caret Line="185" TopLine="162"/>
       </Position>
       <Position>
-        <Filename Value="..\src\pax.nanovg.pas"/>
-        <Caret Line="1045" TopLine="1029"/>
+        <Filename Value="nanovgdev.lpr"/>
+        <Caret Line="186" TopLine="163"/>
       </Position>
       <Position>
-        <Filename Value="..\src\pax.nanovg.pas"/>
-        <Caret Line="1047" TopLine="1029"/>
+        <Filename Value="nanovgdev.lpr"/>
+        <Caret Line="166" TopLine="161"/>
       </Position>
       <Position>
-        <Filename Value="..\src\pax.nanovg.gl.pas"/>
-        <Caret Line="489" TopLine="472"/>
+        <Filename Value="nanovgdev.lpr"/>
+        <Caret Line="168" TopLine="161"/>
       </Position>
       <Position>
-        <Filename Value="..\src\pax.nanovg.gl.pas"/>
-        <Caret Line="497" Column="71" TopLine="472"/>
+        <Filename Value="nanovgdev.lpr"/>
+        <Caret Line="169" TopLine="161"/>
       </Position>
       <Position>
-        <Filename Value="..\src\pax.nanovg.gl.pas"/>
-        <Caret Line="491" TopLine="472"/>
+        <Filename Value="nanovgdev.lpr"/>
+        <Caret Line="170" TopLine="161"/>
       </Position>
       <Position>
-        <Filename Value="..\src\pax.nanovg.gl.pas"/>
-        <Caret Line="493" TopLine="472"/>
+        <Filename Value="nanovgdev.lpr"/>
+        <Caret Line="171" TopLine="161"/>
       </Position>
       <Position>
-        <Filename Value="..\src\pax.nanovg.gl.pas"/>
-        <Caret Line="496" TopLine="472"/>
+        <Filename Value="nanovgdev.lpr"/>
+        <Caret Line="173" TopLine="161"/>
       </Position>
       <Position>
-        <Filename Value="..\src\pax.nanovg.gl.pas"/>
-        <Caret Line="497" TopLine="472"/>
+        <Filename Value="nanovgdev.lpr"/>
+        <Caret Line="174" TopLine="161"/>
       </Position>
       <Position>
-        <Filename Value="..\src\pax.nanovg.gl.pas"/>
-        <Caret Line="498" TopLine="472"/>
+        <Filename Value="nanovgdev.lpr"/>
+        <Caret Line="175" TopLine="161"/>
       </Position>
       <Position>
-        <Filename Value="..\src\pax.nanovg.gl.pas"/>
-        <Caret Line="500" TopLine="475"/>
+        <Filename Value="nanovgdev.lpr"/>
+        <Caret Line="177" TopLine="161"/>
       </Position>
       <Position>
-        <Filename Value="..\src\pax.nanovg.gl.pas"/>
-        <Caret Line="502" TopLine="475"/>
+        <Filename Value="nanovgdev.lpr"/>
+        <Caret Line="178" TopLine="161"/>
       </Position>
       <Position>
-        <Filename Value="..\src\pax.nanovg.gl.pas"/>
-        <Caret Line="403" TopLine="386"/>
+        <Filename Value="nanovgdev.lpr"/>
+        <Caret Line="179" TopLine="161"/>
       </Position>
       <Position>
-        <Filename Value="..\src\pax.nanovg.gl.pas"/>
-        <Caret Line="404" TopLine="386"/>
+        <Filename Value="nanovgdev.lpr"/>
+        <Caret Line="181" TopLine="161"/>
       </Position>
       <Position>
-        <Filename Value="..\src\pax.nanovg.gl.pas"/>
-        <Caret Line="405" TopLine="386"/>
+        <Filename Value="nanovgdev.lpr"/>
+        <Caret Line="182" TopLine="161"/>
       </Position>
       <Position>
-        <Filename Value="..\src\pax.gl.pas"/>
-        <Caret Line="5669" TopLine="5652"/>
+        <Filename Value="nanovgdev.lpr"/>
+        <Caret Line="183" TopLine="161"/>
       </Position>
       <Position>
-        <Filename Value="..\src\pax.gl.pas"/>
-        <Caret Line="5670" TopLine="5652"/>
+        <Filename Value="nanovgdev.lpr"/>
+        <Caret Line="185" TopLine="162"/>
       </Position>
       <Position>
-        <Filename Value="..\src\pax.gl.pas"/>
-        <Caret Line="5671" TopLine="5652"/>
+        <Filename Value="nanovgdev.lpr"/>
+        <Caret Line="186" TopLine="163"/>
       </Position>
       <Position>
-        <Filename Value="..\src\pax.gl.pas"/>
-        <Caret Line="5670" Column="44" TopLine="5652"/>
+        <Filename Value="nanovgdev.lpr"/>
+        <Caret Line="51" Column="5" TopLine="42"/>
       </Position>
     </JumpHistory>
     <RunParams>
@@ -306,35 +282,21 @@
         <WatchScope Value="wpsLocal"/>
         <WatchKind Value="wpkWrite"/>
         <Source Value="..\src\pax.nanovg.gl.pas"/>
-        <Line Value="1418"/>
+        <Line Value="1174"/>
       </Item>
       <Item>
         <Kind Value="bpkSource"/>
         <WatchScope Value="wpsLocal"/>
         <WatchKind Value="wpkWrite"/>
         <Source Value="..\src\pax.nanovg.gl.pas"/>
-        <Line Value="367"/>
+        <Line Value="1172"/>
       </Item>
       <Item>
         <Kind Value="bpkSource"/>
         <WatchScope Value="wpsLocal"/>
         <WatchKind Value="wpkWrite"/>
         <Source Value="..\src\pax.nanovg.pas"/>
-        <Line Value="1045"/>
-      </Item>
-      <Item>
-        <Kind Value="bpkSource"/>
-        <WatchScope Value="wpsLocal"/>
-        <WatchKind Value="wpkWrite"/>
-        <Source Value="..\src\pax.nanovg.gl.pas"/>
-        <Line Value="540"/>
-      </Item>
-      <Item>
-        <Kind Value="bpkSource"/>
-        <WatchScope Value="wpsLocal"/>
-        <WatchKind Value="wpkWrite"/>
-        <Source Value="..\src\pax.nanovg.gl.pas"/>
-        <Line Value="404"/>
+        <Line Value="3420"/>
       </Item>
     </BreakPoints>
   </Debugging>

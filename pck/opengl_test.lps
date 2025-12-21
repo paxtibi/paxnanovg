@@ -1,0 +1,172 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CONFIG>
+  <ProjectSession>
+    <PathDelim Value="\"/>
+    <Version Value="12"/>
+    <BuildModes Active="Default"/>
+    <Units>
+      <Unit>
+        <Filename Value="opengl_test.lpr"/>
+        <IsPartOfProject Value="True"/>
+        <IsVisibleTab Value="True"/>
+        <CursorPos X="26" Y="15"/>
+        <UsageCount Value="20"/>
+        <Loaded Value="True"/>
+      </Unit>
+      <Unit>
+        <Filename Value="..\src\pax.gl.pas"/>
+        <IsPartOfProject Value="True"/>
+        <EditorIndex Value="1"/>
+        <TopLine Value="4925"/>
+        <CursorPos X="30" Y="4929"/>
+        <UsageCount Value="20"/>
+        <Loaded Value="True"/>
+      </Unit>
+      <Unit>
+        <Filename Value="D:\fpcupdeluxe\fpcsrc\rtl\inc\dynlibs.pas"/>
+        <EditorIndex Value="2"/>
+        <TopLine Value="28"/>
+        <CursorPos X="10" Y="45"/>
+        <UsageCount Value="10"/>
+        <Loaded Value="True"/>
+      </Unit>
+    </Units>
+    <JumpHistory HistoryIndex="29">
+      <Position>
+        <Filename Value="..\src\pax.gl.pas"/>
+        <Caret Line="2348" Column="34" TopLine="2321"/>
+      </Position>
+      <Position>
+        <Filename Value="..\src\pax.gl.pas"/>
+        <Caret Line="9385" Column="42" TopLine="9364"/>
+      </Position>
+      <Position>
+        <Filename Value="..\src\pax.gl.pas"/>
+        <Caret Line="2345" Column="12" TopLine="2321"/>
+      </Position>
+      <Position>
+        <Filename Value="..\src\pax.gl.pas"/>
+        <Caret Line="4788" TopLine="4766"/>
+      </Position>
+      <Position>
+        <Filename Value="..\src\pax.gl.pas"/>
+        <Caret Line="4783" Column="38" TopLine="4766"/>
+      </Position>
+      <Position>
+        <Filename Value="..\src\pax.gl.pas"/>
+        <Caret Line="2358" Column="32" TopLine="2324"/>
+      </Position>
+      <Position>
+        <Filename Value="..\src\pax.gl.pas"/>
+        <Caret Line="4913" Column="77" TopLine="4894"/>
+      </Position>
+      <Position>
+        <Filename Value="..\src\pax.gl.pas"/>
+        <Caret Line="4795" Column="21" TopLine="4767"/>
+      </Position>
+      <Position>
+        <Filename Value="..\src\pax.gl.pas"/>
+        <Caret Line="4852" TopLine="4823"/>
+      </Position>
+      <Position>
+        <Filename Value="..\src\pax.gl.pas"/>
+        <Caret Line="4813" Column="39" TopLine="4797"/>
+      </Position>
+      <Position>
+        <Filename Value="..\src\pax.gl.pas"/>
+        <Caret Line="4814" Column="46" TopLine="4797"/>
+      </Position>
+      <Position>
+        <Filename Value="..\src\pax.gl.pas"/>
+        <Caret Line="4843" Column="105" TopLine="4820"/>
+      </Position>
+      <Position>
+        <Filename Value="..\src\pax.gl.pas"/>
+        <Caret Line="4837" Column="43" TopLine="4820"/>
+      </Position>
+      <Position>
+        <Filename Value="..\src\pax.gl.pas"/>
+        <Caret Line="4841" Column="85" TopLine="4824"/>
+      </Position>
+      <Position>
+        <Filename Value="..\src\pax.gl.pas"/>
+        <Caret Line="4871" Column="6" TopLine="4837"/>
+      </Position>
+      <Position>
+        <Filename Value="..\src\pax.gl.pas"/>
+        <Caret Line="4864" Column="39" TopLine="4844"/>
+      </Position>
+      <Position>
+        <Filename Value="..\src\pax.gl.pas"/>
+        <Caret Line="2358" Column="15" TopLine="2336"/>
+      </Position>
+      <Position>
+        <Filename Value="..\src\pax.gl.pas"/>
+        <Caret Line="4912" TopLine="4907"/>
+      </Position>
+      <Position>
+        <Filename Value="..\src\pax.gl.pas"/>
+        <Caret Line="2358" Column="15" TopLine="2342"/>
+      </Position>
+      <Position>
+        <Filename Value="opengl_test.lpr"/>
+        <Caret Line="15" Column="23"/>
+      </Position>
+      <Position>
+        <Filename Value="..\src\pax.gl.pas"/>
+        <Caret Line="2202" Column="51" TopLine="2185"/>
+      </Position>
+      <Position>
+        <Filename Value="..\src\pax.gl.pas"/>
+        <Caret Line="69" TopLine="69"/>
+      </Position>
+      <Position>
+        <Filename Value="..\src\pax.gl.pas"/>
+        <Caret Line="7"/>
+      </Position>
+      <Position>
+        <Filename Value="..\src\pax.gl.pas"/>
+        <Caret Line="2365" Column="30" TopLine="2346"/>
+      </Position>
+      <Position>
+        <Filename Value="..\src\pax.gl.pas"/>
+        <Caret Line="4923" Column="5" TopLine="4923"/>
+      </Position>
+      <Position>
+        <Filename Value="..\src\pax.gl.pas"/>
+        <Caret Line="2365" Column="15" TopLine="2346"/>
+      </Position>
+      <Position>
+        <Filename Value="..\src\pax.gl.pas"/>
+        <Caret Line="4929" Column="30" TopLine="4925"/>
+      </Position>
+      <Position>
+        <Filename Value="opengl_test.lpr"/>
+        <Caret Line="15" Column="24"/>
+      </Position>
+      <Position>
+        <Filename Value="opengl_test.lpr"/>
+        <Caret Line="16"/>
+      </Position>
+      <Position>
+        <Filename Value="opengl_test.lpr"/>
+        <Caret Line="14"/>
+      </Position>
+    </JumpHistory>
+    <RunParams>
+      <FormatVersion Value="2"/>
+      <Modes ActiveMode=""/>
+    </RunParams>
+  </ProjectSession>
+  <Debugging>
+    <BreakPoints>
+      <Item>
+        <Kind Value="bpkSource"/>
+        <WatchScope Value="wpsLocal"/>
+        <WatchKind Value="wpkWrite"/>
+        <Source Value="opengl_test.lpr"/>
+        <Line Value="15"/>
+      </Item>
+    </BreakPoints>
+  </Debugging>
+</CONFIG>
